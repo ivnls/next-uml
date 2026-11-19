@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Traço UML</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,600&display=swap">
+<style>
+/* Layout: aplicação de tela cheia; barra superior + faixa de ferramentas; navegador de modelo à esquerda, folha de desenho ao centro, propriedades à direita. */
+:root{
+  --paper:#F2F6F5; --panel:#FFFFFF; --panel-2:#EEF3F2; --ink:#17232C; --muted:#5B6C73; --line:#D2DCDA;
+  --grid:rgba(14,124,107,.11); --accent:#0E7C6B; --accent-ink:#FFFFFF; --accent-soft:rgba(14,124,107,.12);
+  --shape-fill:#FFFFFF; --shape-head:#E2F0ED; --pkg-fill:rgba(14,124,107,.04); --note-fill:#FFF5CC; --note-stroke:#B39D4E;
+  --danger:#B3372E; --scrim:rgba(10,20,25,.35);
+  --ui:"IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0F161B; --panel:#162027; --panel-2:#1B262E; --ink:#DAE5E3; --muted:#8EA19F; --line:#2B3940;
+  --grid:rgba(90,210,186,.07); --accent:#3EC0A7; --accent-ink:#06201B; --accent-soft:rgba(62,192,167,.16);
+  --shape-fill:#17222A; --shape-head:#1E3332; --pkg-fill:rgba(62,192,167,.04); --note-fill:#383321; --note-stroke:#8E7C3F;
+  --danger:#F0776B; --scrim:rgba(0,0,0,.5); color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#0F161B; --panel:#162027; --panel-2:#1B262E; --ink:#DAE5E3; --muted:#8EA19F; --line:#2B3940;
+  --grid:rgba(90,210,186,.07); --accent:#3EC0A7; --accent-ink:#06201B; --accent-soft:rgba(62,192,167,.16);
+  --shape-fill:#17222A; --shape-head:#1E3332; --pkg-fill:rgba(62,192,167,.04); --note-fill:#383321; --note-stroke:#8E7C3F;
+  --danger:#F0776B; --scrim:rgba(0,0,0,.5); color-scheme:dark }
+
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--panel);color:var(--ink);font:13px/1.45 var(--ui);overflow:hidden}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+.app{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr);grid-template-columns:236px minmax(0,1fr) 284px;
+  grid-template-areas:"top top top" "tools tools tools" "left canvas right"}
+
+/* barra superior */
+.top{grid-area:top;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line);
+  padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));min-width:0}
+.brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;letter-spacing:-.01em;white-space:nowrap}
+.brand svg{width:22px;height:22px;color:var(--accent)}
+.crumb{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:260px}
+.actions{display:flex;align-items:center;gap:4px;margin-left:auto;overflow-x:auto;min-width:0;scrollbar-width:none}
+.actions::-webkit-scrollbar{display:none}
+.sep{width:1px;height:20px;background:var(--line);margin-inline:6px;flex:none}
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid transparent;border-radius:6px;background:none;cursor:pointer;white-space:nowrap;flex:none}
+.btn:hover{background:var(--panel-2)}
+.btn:disabled{opacity:.4;cursor:default;background:none}
+.btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.outline{border-color:var(--line)}
+.btn.danger{color:var(--danger)}
+.zoom{font-variant-numeric:tabular-nums;min-width:56px;justify-content:center;font-family:var(--mono);font-size:12px}
+.only-narrow{display:none}
+
+/* faixa de ferramentas */
+.tools{grid-area:tools;display:flex;gap:18px;align-items:center;overflow-x:auto;border-bottom:1px solid var(--line);background:var(--panel-2);
+  padding-block:6px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.tgroup{display:flex;align-items:center;gap:2px;flex:none}
+.tgroup>b{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500;margin-right:6px}
+.tool{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:58px;padding:5px 6px 4px;border:1px solid transparent;border-radius:6px;background:none;cursor:pointer;font-size:11px;color:var(--muted);position:relative}
+.tool svg{width:20px;height:20px;fill:none;stroke:var(--ink);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.tool:hover{background:var(--panel);color:var(--ink)}
+.tool[aria-pressed="true"]{background:var(--panel);border-color:var(--accent);color:var(--accent)}
+.tool[aria-pressed="true"] svg{stroke:var(--accent)}
+.tool.locked::after{content:"";position:absolute;top:4px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+/* painéis laterais */
+.side{background:var(--panel);overflow-y:auto;min-height:0}
+.left{grid-area:left;border-right:1px solid var(--line)}
+.right{grid-area:right;border-left:1px solid var(--line)}
+.sec{padding:14px 16px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.sec h3{margin:0;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500;display:flex;align-items:center;justify-content:space-between}
+.list{list-style:none;margin:0;padding:0;display:grid;gap:1px}
+.item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:none;padding:5px 8px;border-radius:5px;cursor:pointer;min-width:0}
+.item:hover{background:var(--panel-2)}
+.item.on{background:var(--accent-soft);color:var(--ink)}
+.item svg{width:15px;height:15px;flex:none;fill:none;stroke:var(--muted);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.item.on svg{stroke:var(--accent)}
+.item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.item small{color:var(--muted);font-family:var(--mono);font-size:11px}
+.addrow{display:flex;gap:6px;flex-wrap:wrap}
+.addrow .btn{height:26px;font-size:12px;padding:0 8px;border-color:var(--line)}
+.empty{color:var(--muted);font-size:12px;margin:0}
+
+.p-head{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.p-head svg{width:18px;height:18px;fill:none;stroke:var(--accent);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.field{display:grid;gap:4px}
+.field>span{font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between}
+.field em{font-style:normal;opacity:.8}
+.field input,.field textarea,.field select{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;background:var(--paper);padding:6px 8px;outline:none}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.field textarea{font-family:var(--mono);font-size:12px;resize:vertical;line-height:1.5}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.check{display:flex;align-items:center;gap:8px;cursor:pointer}
+.check input{accent-color:var(--accent);width:15px;height:15px}
+.hint{font-size:11.5px;color:var(--muted);margin:0}
+.hint code,kbd{font-family:var(--mono);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.p-actions{display:flex;gap:6px;flex-wrap:wrap}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:12px;align-items:center;margin:0}
+.keys dt{white-space:nowrap}
+.keys dd{margin:0;color:var(--muted)}
+.meta{display:flex;gap:16px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.meta b{color:var(--ink);font-weight:600;font-family:var(--mono)}
+
+/* área de desenho */
+.canvas{grid-area:canvas;position:relative;overflow:hidden;min-width:0;background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px)}
+#svg{position:absolute;inset:0;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;display:block}
+#svg.c-create{cursor:crosshair}
+#svg.c-pan{cursor:grab}
+#svg.panning{cursor:grabbing}
+.status{position:absolute;left:12px;bottom:10px;right:12px;display:flex;gap:10px;align-items:center;pointer-events:none;font-size:11.5px;color:var(--muted)}
+.status>span{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:3px 8px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:7px 14px;border-radius:6px;font-size:12.5px;pointer-events:none;opacity:0;transition:opacity .2s;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1}
+
+/* elementos do diagrama */
+.shape{fill:var(--shape-fill);stroke:var(--ink);stroke-width:1.25}
+.head{fill:var(--shape-head)}
+.div{stroke:var(--ink);stroke-width:1;fill:none}
+.t-name{font-family:var(--ui);font-size:13px;font-weight:600;fill:var(--ink)}
+.t-name.it{font-style:italic}
+.t-st{font-family:var(--ui);font-size:11px;fill:var(--muted)}
+.t-mem{font-family:var(--mono);font-size:12px;fill:var(--ink)}
+.t-plain{font-family:var(--ui);font-size:13px;fill:var(--ink)}
+.t-note{font-family:var(--ui);font-size:12.5px;fill:var(--ink)}
+.note-shape{fill:var(--note-fill);stroke:var(--note-stroke);stroke-width:1.25}
+.note-fold{fill:none;stroke:var(--note-stroke);stroke-width:1.25}
+.pkg{fill:var(--pkg-fill);stroke:var(--ink);stroke-width:1.25}
+.stick{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round}
+.stick-head{fill:var(--shape-fill);stroke:var(--ink);stroke-width:1.6}
+.hitbox{fill:transparent}
+.node{cursor:move}
+.e-line{fill:none;stroke:var(--ink);stroke-width:1.25}
+.e-line.dash{stroke-dasharray:6 4}
+.edge.sel .e-line{stroke:var(--accent);stroke-width:2}
+.hit{fill:none;stroke:transparent;stroke-width:14;cursor:pointer}
+.t-edge{font-family:var(--ui);font-size:11.5px;fill:var(--ink);paint-order:stroke;stroke:var(--paper);stroke-width:4px;stroke-linejoin:round}
+.t-mult{font-family:var(--mono);font-size:11px;fill:var(--ink);paint-order:stroke;stroke:var(--paper);stroke-width:4px;stroke-linejoin:round}
+.mk-hollow{fill:var(--shape-fill);stroke:var(--ink);stroke-width:1.25}
+.mk-fill{fill:var(--ink);stroke:var(--ink);stroke-width:1.25}
+.mk-open{fill:none;stroke:var(--ink);stroke-width:1.25;stroke-linejoin:round}
+.sel-box{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-dasharray:4 3;pointer-events:none}
+.handle{fill:var(--accent);cursor:nwse-resize}
+.temp{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4;fill:none;pointer-events:none}
+.marquee{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1;pointer-events:none}
+.target .shape,.target .note-shape,.target .pkg{stroke:var(--accent);stroke-width:2.5}
+
+/* modal */
+.modal{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:50;padding:16px}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:min(640px,100%);max-height:calc(100% - 32px);overflow:auto;box-shadow:0 18px 50px rgba(0,0,0,.25)}
+.sheet header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.sheet h2{margin:0;font-size:15px;font-weight:600}
+.sheet .body{padding:16px 18px;display:grid;gap:12px}
+.sheet textarea{width:100%;box-sizing:border-box;min-height:180px;font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:6px;background:var(--paper);padding:8px}
+.preview{background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px;text-align:center;overflow:auto;max-height:46vh}
+.preview img{max-width:100%;height:auto}
+.scrim{display:none}
+
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-areas:"top" "tools" "canvas"}
+  .side{position:fixed;top:0;bottom:0;width:min(86vw,320px);z-index:40;transition:transform .22s ease;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 0 40px rgba(0,0,0,.2)}
+  .left{left:0;transform:translateX(-105%)}
+  .right{right:0;transform:translateX(105%)}
+  .side.open{transform:none}
+  .scrim.on{display:block;position:fixed;inset:0;background:var(--scrim);z-index:35}
+  .only-narrow{display:inline-flex}
+  .crumb,.wide-only{display:none}
+  .tool{min-width:52px}
+}
+@media (prefers-reduced-motion: reduce){.side,.toast{transition:none}}
+</style>
+<style>body{margin:0}</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="11" height="10" rx="1"/><path d="M3 7h11"/><rect x="12" y="15" width="9" height="6" rx="1"/><path d="M8.5 13v5H12" /></svg>
+      Traço UML
+    </div>
+    <div class="crumb" id="crumb"></div>
+    <nav class="actions" aria-label="Ações">
+      <button class="btn only-narrow" data-cmd="toggle-left" title="Diagramas e elementos"><svg viewBox="0 0 20 20"><path d="M3 5h14M3 10h14M3 15h14"/></svg></button>
+      <button class="btn" data-cmd="new" title="Novo projeto"><svg viewBox="0 0 20 20"><path d="M5 2.5h7l3.5 3.5v11.5H5z"/><path d="M12 2.5V6h3.5"/></svg><span class="wide-only">Novo</span></button>
+      <button class="btn" data-cmd="open" title="Abrir projeto (.json)"><svg viewBox="0 0 20 20"><path d="M2.5 5.5h5l1.5 2h8.5v8.5h-15z"/></svg><span class="wide-only">Abrir</span></button>
+      <button class="btn" data-cmd="save" title="Salvar projeto (Ctrl+S)"><svg viewBox="0 0 20 20"><path d="M4 3h10l2.5 2.5V17H4z"/><path d="M7 3v4h6V3M7 17v-5h6v5"/></svg><span class="wide-only">Salvar</span></button>
+      <button class="btn" data-cmd="svg" title="Exportar SVG"><svg viewBox="0 0 20 20"><path d="M10 3v9M6 8l4 4 4-4M4 15.5h12"/></svg><span>SVG</span></button>
+      <button class="btn" data-cmd="png" title="Exportar PNG"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1"/><path d="M3 13l4-4 3 3 2-2 5 5"/></svg><span>PNG</span></button>
+      <span class="sep"></span>
+      <button class="btn" data-cmd="undo" id="bUndo" title="Desfazer (Ctrl+Z)"><svg viewBox="0 0 20 20"><path d="M7.5 5L4 8.5 7.5 12"/><path d="M4 8.5h8a4 4 0 010 8H9"/></svg></button>
+      <button class="btn" data-cmd="redo" id="bRedo" title="Refazer (Ctrl+Y)"><svg viewBox="0 0 20 20"><path d="M12.5 5L16 8.5 12.5 12"/><path d="M16 8.5H8a4 4 0 000 8h3"/></svg></button>
+      <span class="sep"></span>
+      <button class="btn" data-cmd="zoom-out" title="Afastar"><svg viewBox="0 0 20 20"><path d="M5 10h10"/></svg></button>
+      <button class="btn zoom" data-cmd="zoom-reset" id="zoomLbl" title="Voltar a 100%">100%</button>
+      <button class="btn" data-cmd="zoom-in" title="Aproximar"><svg viewBox="0 0 20 20"><path d="M5 10h10M10 5v10"/></svg></button>
+      <button class="btn outline" data-cmd="fit" title="Enquadrar diagrama"><svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/></svg><span class="wide-only">Enquadrar</span></button>
+      <button class="btn only-narrow" data-cmd="toggle-right" title="Propriedades"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 14h12"/><circle cx="8" cy="6" r="2"/><circle cx="13" cy="14" r="2"/></svg></button>
+    </nav>
+  </header>
+
+  <div class="tools" id="tools" role="toolbar" aria-label="Ferramentas"></div>
+
+  <aside class="side left" id="left" aria-label="Navegador do modelo"></aside>
+
+  <main class="canvas" id="canvas">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg" aria-label="Área de desenho">
+      <defs id="defs"></defs>
+      <g id="vp"></g>
+    </svg>
+    <div class="status"><span id="hint"></span></div>
+    <div class="toast" id="toast" role="status"></div>
+  </main>
+
+  <aside class="side right" id="right" aria-label="Propriedades"><div id="props"></div></aside>
+  <div class="scrim" id="scrim"></div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <header><h2 id="mTitle"></h2><button class="btn" data-close title="Fechar"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></button></header>
+    <div class="body" id="mBody"></div>
+  </div>
+</div>
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEY = 'tracouml.v1';
+const LH = 17, GRID = 10;
+const snap = v => Math.round(v / GRID) * GRID;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fine = matchMedia('(pointer:fine)').matches;
+
+/* ---------- catálogo ---------- */
+const ICON = {
+  select:'<path d="M5 3l10 6.5-4.6 1.2L8.2 15.5z" fill="currentColor" stroke="none"/>',
+  hand:'<path d="M7 10V5.5a1.2 1.2 0 012.4 0V9M9.4 9V4.2a1.2 1.2 0 012.4 0V9M11.8 9V5.2a1.2 1.2 0 012.4 0V11c0 3.3-2 5.5-5 5.5-2.2 0-3.4-1.2-4.4-3L3.6 11a1.1 1.1 0 011.9-1.1L7 12"/>',
+  class:'<rect x="3" y="3" width="14" height="14" rx="1"/><path d="M3 8h14M3 12.5h14"/>',
+  interface:'<circle cx="10" cy="6.5" r="3.5"/><path d="M10 10v7"/>',
+  actor:'<circle cx="10" cy="4.5" r="2.5"/><path d="M10 7v6M5.5 9.5h9M10 13l-3.5 4.5M10 13l3.5 4.5"/>',
+  usecase:'<ellipse cx="10" cy="10" rx="8" ry="5"/>',
+  note:'<path d="M4 3h8.5L16 6.5V17H4z"/><path d="M12.5 3v3.5H16"/>',
+  package:'<path d="M3 5h6v2.5h8V17H3z"/><path d="M3 7.5h6"/>',
+  association:'<path d="M3 17L17 3"/>',
+  directed:'<path d="M3 17L17 3M10.5 3H17v6.5"/>',
+  generalization:'<path d="M3 17L13.1 6.9"/><path d="M17 3L15.2 9 11 4.8z"/>',
+  realization:'<path d="M3 17L13.1 6.9" stroke-dasharray="2.2 2"/><path d="M17 3L15.2 9 11 4.8z"/>',
+  dependency:'<path d="M3 17L17 3" stroke-dasharray="2.2 2"/><path d="M10.5 3H17v6.5"/>',
+  aggregation:'<path d="M3 17l7-7"/><path d="M17 3L15.3 8.3 10 10 11.7 4.7z"/>',
+  composition:'<path d="M3 17l7-7"/><path d="M17 3L15.3 8.3 10 10 11.7 4.7z" fill="currentColor"/>',
+  include:'<path d="M3 17L17 3" stroke-dasharray="2.2 2"/><path d="M10.5 3H17v6.5"/><path d="M4 6h4M6 4v4"/>',
+  extend:'<path d="M3 17L17 3" stroke-dasharray="2.2 2"/><path d="M10.5 3H17v6.5"/><path d="M12 16h5"/>',
+  anchor:'<path d="M3 17L17 3" stroke-dasharray="2.2 2"/><circle cx="4" cy="16" r="1.6" fill="currentColor"/>',
+  diagramClass:'<rect x="2.5" y="3" width="8" height="7" rx=".5"/><rect x="9.5" y="11" width="8" height="6" rx=".5"/><path d="M6.5 10v4h3"/>',
+  diagramUse:'<ellipse cx="12" cy="7" rx="5.5" ry="3.2"/><circle cx="4.5" cy="8" r="1.6"/><path d="M4.5 9.6v3.4M2.5 11h4M4.5 13l-1.6 3M4.5 13l1.6 3"/>',
+  multi:'<rect x="3" y="3" width="9" height="9" rx="1"/><rect x="8" y="8" width="9" height="9" rx="1"/>',
+};
+const NODE_TYPES = {
+  class:{label:'Classe', key:'c'}, interface:{label:'Interface', key:'i'}, actor:{label:'Ator', key:'a'},
+  usecase:{label:'Caso de uso', key:'u'}, note:{label:'Nota', key:'n'}, package:{label:'Pacote', key:'p'},
+};
+const ETYPES = {
+  association:{label:'Associação', end:null, mult:true},
+  directed:{label:'Assoc. dirigida', full:'Associação dirigida', end:'arr', mult:true},
+  generalization:{label:'Generalização', end:'tri'},
+  realization:{label:'Realização', dash:true, end:'tri'},
+  dependency:{label:'Dependência', dash:true, end:'arr'},
+  aggregation:{label:'Agregação', end:'dia', mult:true},
+  composition:{label:'Composição', end:'diaf', mult:true},
+  include:{label:'Inclusão', dash:true, end:'arr', stereo:'«include»'},
+  extend:{label:'Extensão', dash:true, end:'arr', stereo:'«extend»'},
+  anchor:{label:'Ligar nota', full:'Ligação de nota', dash:true, end:null},
+};
+const EDGE_HELP = {
+  generalization:'Arraste do filho até o pai.', realization:'Arraste da classe até a interface.',
+  aggregation:'Arraste da parte até o todo (o losango fica no todo).', composition:'Arraste da parte até o todo (o losango fica no todo).',
+  include:'Arraste do caso base até o caso incluído.', extend:'Arraste da extensão até o caso base.',
+  dependency:'Arraste do cliente até o fornecedor.',
+};
+const TOOLS = [
+  {g:'Navegar', items:[{id:'select', label:'Selecionar', key:'v'}, {id:'hand', label:'Mover vista', key:'h'}]},
+  {g:'Elementos', items:Object.entries(NODE_TYPES).map(([id, t]) => ({id, label:t.label, key:t.key}))},
+  {g:'Relações', items:Object.entries(ETYPES).map(([id, t]) => ({id, label:t.label}))},
+];
+
+/* ---------- medição de texto ---------- */
+const mctx = document.createElement('canvas').getContext('2d');
+const FN = {
+  name:"600 13px 'IBM Plex Sans', Arial, sans-serif", st:"11px 'IBM Plex Sans', Arial, sans-serif",
+  mem:"12px 'IBM Plex Mono', Consolas, monospace", plain:"13px 'IBM Plex Sans', Arial, sans-serif",
+  note:"12.5px 'IBM Plex Sans', Arial, sans-serif",
+};
+const tw = (t, f) => { mctx.font = f; return mctx.measureText(t || '').width; };
+
+function layout(n){
+  if (n.type === 'class' || n.type === 'interface'){
+    const st = n.type === 'interface' ? '«interface»' : (n.stereotype ? `«${n.stereotype}»` : '');
+    const showAttrs = n.type === 'class' || n.attrs.length > 0;
+    const mw = Math.max(tw(n.name, FN.name), st ? tw(st, FN.st) : 0,
+      ...n.attrs.map(a => tw(a, FN.mem)), ...n.ops.map(a => tw(a, FN.mem)));
+    const headH = st ? 44 : 32;
+    const attrH = showAttrs ? (n.attrs.length ? 8 + n.attrs.length * LH : 14) : 0;
+    const opsH = n.ops.length ? 8 + n.ops.length * LH : 14;
+    n.w = Math.max(140, Math.ceil(mw) + 24); n.h = headH + attrH + opsH;
+    n._l = {st, showAttrs, headH, attrH};
+  } else if (n.type === 'usecase'){
+    n.w = Math.max(130, Math.ceil(tw(n.name, FN.plain)) + 46); n.h = 56;
+  } else if (n.type === 'actor'){
+    n.w = Math.max(64, Math.ceil(tw(n.name, FN.plain)) + 10); n.h = 94;
+  } else if (n.type === 'note'){
+    const lines = (n.text || '').split('\n');
+    n.w = Math.max(120, Math.ceil(Math.max(...lines.map(l => tw(l, FN.note)))) + 30);
+    n.h = Math.max(44, 14 + lines.length * 16 + 6);
+    n._l = {lines};
+  } else if (n.type === 'package'){
+    const tabW = Math.ceil(tw(n.name, FN.name)) + 22;
+    n.w = Math.max(n.w || 300, tabW + 40, 160); n.h = Math.max(n.h || 200, 100);
+    n._l = {tabW};
+  }
+}
+
+/* ---------- estado ---------- */
+let state, sel = new Set(), tool = 'select', toolLocked = false;
+let drag = null, pending = null, lastPointer = {x:0, y:0}, spaceDown = false;
+let history = [], future = [], pendingSnap = null, clip = null, pasteN = 0;
+const cur = () => state.diagrams.find(d => d.id === state.current) || state.diagrams[0];
+const node = id => cur().nodes.find(n => n.id === id);
+const edge = id => cur().edges.find(e => e.id === id);
+const snapshot = () => JSON.stringify({diagrams:state.diagrams, current:state.current}, (k, v) => k[0] === '_' ? undefined : v);
+
+function sample(){
+  const C = (name, x, y, attrs, ops, extra = {}) => ({id:uid(), type:'class', name, x, y, attrs, ops, abstract:false, stereotype:'', ...extra});
+  const pessoa = C('Pessoa', 330, 40, ['- nome: String', '- cpf: String'], ['+ getNome(): String'], {abstract:true});
+  const notif = {id:uid(), type:'interface', name:'Notificavel', x:40, y:50, attrs:[], ops:['+ notificar(msg: String): void']};
+  const leitor = C('Leitor', 140, 260, ['- matricula: int', '- limite: int = 3'], ['+ podeEmprestar(): boolean']);
+  const bib = C('Bibliotecario', 480, 260, ['- registro: String'], ['+ registrarDevolucao(e: Emprestimo): void']);
+  const emp = C('Emprestimo', 120, 470, ['- dataSaida: Date', '- prazo: Date', '- devolvido: boolean'], ['+ calcularMulta(): double', '+ renovar(dias: int): void']);
+  const exe = C('Exemplar', 520, 490, ['- codigo: String', '- estado: Estado'], ['+ disponivel(): boolean']);
+  const livro = C('Livro', 860, 470, ['- isbn: String', '- titulo: String', '- ano: int'], []);
+  const estado = C('Estado', 860, 260, ['DISPONIVEL', 'EMPRESTADO', 'EM_REPARO'], [], {stereotype:'enumeration'});
+  const nota = {id:uid(), type:'note', x:110, y:710, text:'Multa: R$ 2,00 por dia de atraso,\nlimitada ao valor do exemplar.'};
+  const E = (type, from, to, extra = {}) => ({id:uid(), type, from:from.id, to:to.id, name:'', srcMult:'', tgtMult:'', ...extra});
+  const d1 = {id:uid(), name:'Biblioteca — classes', kind:'class', view:{x:40, y:30, z:1},
+    nodes:[pessoa, notif, leitor, bib, emp, exe, livro, estado, nota],
+    edges:[E('generalization', leitor, pessoa), E('generalization', bib, pessoa), E('realization', leitor, notif),
+      E('association', leitor, emp, {name:'realiza', srcMult:'1', tgtMult:'0..*'}),
+      E('directed', emp, exe, {name:'refere-se a', srcMult:'0..*', tgtMult:'1'}),
+      E('composition', exe, livro, {srcMult:'1..*', tgtMult:'1'}),
+      E('dependency', bib, emp), E('dependency', exe, estado), E('anchor', nota, emp)]};
+  const U = (name, x, y) => ({id:uid(), type:'usecase', name, x, y});
+  const A = (name, x, y) => ({id:uid(), type:'actor', name, x, y});
+  const pkg = {id:uid(), type:'package', name:'Sistema da Biblioteca', x:200, y:20, w:460, h:500};
+  const consultar = U('Consultar acervo', 290, 80), emprestar = U('Emprestar livro', 290, 180),
+    autenticar = U('Autenticar usuário', 460, 290), devolver = U('Devolver livro', 290, 380), multa = U('Calcular multa', 260, 450);
+  const leitorA = A('Leitor', 50, 110), bibA = A('Bibliotecário', 780, 230);
+  const d2 = {id:uid(), name:'Biblioteca — casos de uso', kind:'usecase', view:{x:40, y:30, z:1},
+    nodes:[pkg, consultar, emprestar, autenticar, devolver, multa, leitorA, bibA],
+    edges:[E('association', leitorA, consultar), E('association', leitorA, emprestar), E('association', bibA, emprestar),
+      E('association', bibA, devolver), E('include', emprestar, autenticar), E('include', devolver, autenticar), E('extend', multa, devolver)]};
+  return {diagrams:[d1, d2], current:d1.id};
+}
+function normalize(s){
+  if (!s || !Array.isArray(s.diagrams) || !s.diagrams.length) throw new Error('O arquivo não tem a lista "diagrams".');
+  s.diagrams.forEach(d => {
+    d.id ||= uid(); d.name ||= 'Diagrama'; d.kind ||= 'class';
+    d.nodes = Array.isArray(d.nodes) ? d.nodes.filter(n => NODE_TYPES[n.type]) : [];
+    d.edges = Array.isArray(d.edges) ? d.edges.filter(e => ETYPES[e.type]) : [];
+    d.view = d.view && isFinite(d.view.z) ? d.view : {x:40, y:40, z:1};
+    d.nodes.forEach(n => { n.id ||= uid(); n.x = +n.x || 0; n.y = +n.y || 0; n.name ??= '';
+      if (n.type === 'class' || n.type === 'interface'){ n.attrs ||= []; n.ops ||= []; } if (n.type === 'note') n.text ??= ''; });
+  });
+  if (!s.diagrams.some(d => d.id === s.current)) s.current = s.diagrams[0].id;
+  return s;
+}
+function load(){
+  try { const raw = localStorage.getItem(KEY); if (raw) return normalize(JSON.parse(raw)); } catch (e) {}
+  return sample();
+}
+let saveT;
+function save(){ clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, snapshot()); } catch (e) {} }, 300); }
+
+function checkpoint(){ history.push(snapshot()); if (history.length > 150) history.shift(); future = []; pendingSnap = null; undoBtns(); }
+function restore(s){ state = normalize(JSON.parse(s)); const d = cur(); sel = new Set([...sel].filter(id => d.nodes.some(n => n.id === id) || d.edges.some(e => e.id === id))); refresh(); save(); }
+function undo(){ if (!history.length) return; future.push(snapshot()); restore(history.pop()); undoBtns(); toast('Desfeito'); }
+function redo(){ if (!future.length) return; history.push(snapshot()); restore(future.pop()); undoBtns(); toast('Refeito'); }
+function undoBtns(){ $('#bUndo').disabled = !history.length; $('#bRedo').disabled = !future.length; }
+
+/* ---------- geometria ---------- */
+const center = n => ({x:n.x + n.w / 2, y:n.y + n.h / 2});
+function clipTo(n, t){
+  const c = center(n), dx = t.x - c.x, dy = t.y - c.y;
+  if (!dx && !dy) return c;
+  if (n.type === 'usecase'){ const a = n.w / 2, b = n.h / 2, k = 1 / Math.sqrt(dx*dx/(a*a) + dy*dy/(b*b)); return {x:c.x + dx*k, y:c.y + dy*k}; }
+  let hw = n.w / 2, hh = n.h / 2, oy = 0;
+  if (n.type === 'actor'){ hh = 38; oy = -9; }
+  const k = Math.min(hw / Math.abs(dx || 1e-9), hh / Math.abs(dy || 1e-9));
+  return {x:c.x + dx*k, y:c.y + oy + (dy)*k};
+}
+const inside = (m, p) => m.x >= p.x && m.y >= p.y + 22 && m.x + m.w <= p.x + p.w && m.y + m.h <= p.y + p.h;
+
+/* ---------- SVG ---------- */
+const DEFS = `
+<marker id="m-tri" viewBox="0 0 16 16" refX="15" refY="8" markerWidth="16" markerHeight="16" orient="auto" markerUnits="userSpaceOnUse"><path class="mk-hollow" d="M1 1.5L15 8 1 14.5z"/></marker>
+<marker id="m-arr" viewBox="0 0 16 16" refX="15" refY="8" markerWidth="16" markerHeight="16" orient="auto" markerUnits="userSpaceOnUse"><path class="mk-open" d="M2 2.5L15 8 2 13.5"/></marker>
+<marker id="m-dia" viewBox="0 0 26 14" refX="25" refY="7" markerWidth="26" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse"><path class="mk-hollow" d="M1 7L13 1.5 25 7 13 12.5z"/></marker>
+<marker id="m-diaf" viewBox="0 0 26 14" refX="25" refY="7" markerWidth="26" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse"><path class="mk-fill" d="M1 7L13 1.5 25 7 13 12.5z"/></marker>`;
+$('#defs').innerHTML = DEFS;
+
+function nodeSVG(n, exp){
+  const {x, y, w, h} = n; const L = n._l || {};
+  let s = `<g class="node" data-kind="node" data-id="${n.id}">`;
+  if (n.type === 'class' || n.type === 'interface'){
+    s += `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}"/>`;
+    s += `<rect class="head" x="${x + .7}" y="${y + .7}" width="${w - 1.4}" height="${L.headH - 1.4}"/>`;
+    if (L.st) s += `<text class="t-st" x="${x + w/2}" y="${y + 17}" text-anchor="middle">${esc(L.st)}</text>`;
+    s += `<text class="t-name${n.abstract ? ' it' : ''}" x="${x + w/2}" y="${y + L.headH - 12}" text-anchor="middle">${esc(n.name)}</text>`;
+    let cy = y + L.headH;
+    s += `<path class="div" d="M${x} ${cy}H${x + w}"/>`;
+    if (L.showAttrs){
+      n.attrs.forEach((a, i) => { s += `<text class="t-mem" x="${x + 10}" y="${cy + 16 + LH*i}">${esc(a)}</text>`; });
+      cy += L.attrH; s += `<path class="div" d="M${x} ${cy}H${x + w}"/>`;
+    }
+    n.ops.forEach((a, i) => { s += `<text class="t-mem" x="${x + 10}" y="${cy + 16 + LH*i}">${esc(a)}</text>`; });
+  } else if (n.type === 'usecase'){
+    s += `<ellipse class="shape" cx="${x + w/2}" cy="${y + h/2}" rx="${w/2}" ry="${h/2}"/>`;
+    s += `<text class="t-plain" x="${x + w/2}" y="${y + h/2 + 4.5}" text-anchor="middle">${esc(n.name)}</text>`;
+  } else if (n.type === 'actor'){
+    const cx = x + w/2;
+    if (!exp) s += `<rect class="hitbox" x="${x}" y="${y}" width="${w}" height="${h}"/>`;
+    s += `<circle class="stick-head" cx="${cx}" cy="${y + 11}" r="9"/>`;
+    s += `<path class="stick" d="M${cx} ${y + 20}V${y + 50}M${cx - 17} ${y + 30}H${cx + 17}M${cx} ${y + 50}L${cx - 14} ${y + 70}M${cx} ${y + 50}L${cx + 14} ${y + 70}"/>`;
+    s += `<text class="t-plain" x="${cx}" y="${y + 89}" text-anchor="middle">${esc(n.name)}</text>`;
+  } else if (n.type === 'note'){
+    s += `<path class="note-shape" d="M${x} ${y}H${x + w - 12}L${x + w} ${y + 12}V${y + h}H${x}Z"/>`;
+    s += `<path class="note-fold" d="M${x + w - 12} ${y}V${y + 12}H${x + w}"/>`;
+    L.lines.forEach((l, i) => { s += `<text class="t-note" x="${x + 10}" y="${y + 22 + 16*i}">${esc(l)}</text>`; });
+  } else if (n.type === 'package'){
+    s += `<path class="pkg" d="M${x} ${y}h${L.tabW}v22h-${L.tabW}z"/>`;
+    s += `<rect class="pkg" x="${x}" y="${y + 22}" width="${w}" height="${h - 22}"/>`;
+    s += `<text class="t-name" x="${x + 11}" y="${y + 15.5}">${esc(n.name)}</text>`;
+  }
+  return s + '</g>';
+}
+
+function edgeSVG(e, d, exp){
+  const a = d.nodes.find(n => n.id === e.from), b = d.nodes.find(n => n.id === e.to);
+  if (!a || !b) return '';
+  const T = ETYPES[e.type];
+  let path, p1, p2, mid, u, nrm;
+  if (a === b){
+    const x = a.x + a.w, y = a.y;
+    p1 = {x:x - 26, y}; p2 = {x, y:y + 26};
+    path = `M${p1.x} ${p1.y}C${p1.x} ${y - 52} ${x + 52} ${p2.y} ${p2.x} ${p2.y}`;
+    mid = {x:x + 22, y:y - 30}; u = {x:0, y:-1}; nrm = {x:1, y:0};
+  } else {
+    p1 = clipTo(a, center(b)); p2 = clipTo(b, center(a));
+    const len = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+    u = {x:(p2.x - p1.x)/len, y:(p2.y - p1.y)/len}; nrm = {x:-u.y, y:u.x};
+    if (nrm.y > 0 || (nrm.y === 0 && nrm.x < 0)) nrm = {x:-nrm.x, y:-nrm.y};
+    path = `M${p1.x.toFixed(1)} ${p1.y.toFixed(1)}L${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    mid = {x:(p1.x + p2.x)/2, y:(p1.y + p2.y)/2};
+  }
+  const on = !exp && sel.has(e.id);
+  let s = `<g class="edge${on ? ' sel' : ''}" data-kind="edge" data-id="${e.id}">`;
+  if (!exp) s += `<path class="hit" d="${path}"/>`;
+  s += `<path class="e-line${T.dash ? ' dash' : ''}" d="${path}"${T.end ? ` marker-end="url(#m-${T.end})"` : ''}/>`;
+  const label = [T.stereo, e.name].filter(Boolean).join(' ');
+  if (label) s += `<text class="t-edge" x="${(mid.x + nrm.x*10).toFixed(1)}" y="${(mid.y + nrm.y*10 + 4).toFixed(1)}" text-anchor="middle">${esc(label)}</text>`;
+  if (T.mult && a !== b){
+    const m = (p, dir, t) => t ? `<text class="t-mult" x="${(p.x + u.x*dir*18 + nrm.x*11).toFixed(1)}" y="${(p.y + u.y*dir*18 + nrm.y*11 + 4).toFixed(1)}" text-anchor="middle">${esc(t)}</text>` : '';
+    s += m(p1, 1, e.srcMult) + m(p2, -1.3, e.tgtMult);
+  }
+  return s + '</g>';
+}
+
+function diagramSVG(d, exp){
+  d.nodes.forEach(layout);
+  const pk = d.nodes.filter(n => n.type === 'package'), ot = d.nodes.filter(n => n.type !== 'package');
+  return pk.map(n => nodeSVG(n, exp)).join('') + d.edges.map(e => edgeSVG(e, d, exp)).join('') + ot.map(n => nodeSVG(n, exp)).join('');
+}
+
+const svg = $('#svg'), vp = $('#vp'), canvas = $('#canvas');
+function render(){
+  const d = cur(), v = d.view;
+  vp.setAttribute('transform', `translate(${v.x} ${v.y}) scale(${v.z})`);
+  canvas.style.backgroundSize = `${20*v.z}px ${20*v.z}px`;
+  canvas.style.backgroundPosition = `${v.x}px ${v.y}px`;
+  let h = diagramSVG(d, false);
+  for (const id of sel){
+    const n = node(id); if (!n) continue;
+    h += `<rect class="sel-box" x="${n.x - 4}" y="${n.y - 4}" width="${n.w + 8}" height="${n.h + 8}"/>`;
+    if (n.type === 'package' && sel.size === 1) h += `<rect class="handle" data-kind="handle" data-id="${n.id}" x="${n.x + n.w - 5}" y="${n.y + n.h - 5}" width="10" height="10" rx="2"/>`;
+  }
+  const from = drag?.mode === 'edge' ? drag.from : pending?.from;
+  if (from){
+    const n = node(from), c = center(n), t = drag?.mode === 'edge' ? drag.cur : lastPointer;
+    h += `<path class="temp" d="M${c.x} ${c.y}L${t.x} ${t.y}"/>`;
+  }
+  if (drag?.mode === 'marquee'){
+    const r = rectOf(drag.start, drag.cur);
+    h += `<rect class="marquee" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}"/>`;
+  }
+  vp.innerHTML = h;
+  if (drag?.mode === 'edge' && drag.over) vp.querySelector(`.node[data-id="${drag.over}"]`)?.classList.add('target');
+  $('#zoomLbl').textContent = Math.round(v.z * 100) + '%';
+  $('#crumb').textContent = d.name;
+}
+const rectOf = (a, b) => ({x:Math.min(a.x, b.x), y:Math.min(a.y, b.y), w:Math.abs(a.x - b.x), h:Math.abs(a.y - b.y)});
+
+/* ---------- ferramentas ---------- */
+function buildTools(){
+  $('#tools').innerHTML = TOOLS.map(g => `<div class="tgroup"><b>${g.g}</b>${g.items.map(t =>
+    `<button class="tool" data-tool="${t.id}" title="${esc((ETYPES[t.id]?.full || t.label) + (t.key ? ` (${t.key.toUpperCase()})` : ''))}"><svg viewBox="0 0 20 20" aria-hidden="true">${ICON[t.id]}</svg><span>${t.label}</span></button>`).join('')}</div>`).join('');
+}
+function setTool(t, lock = false){
+  tool = t; toolLocked = lock && t !== 'select'; pending = null;
+  document.querySelectorAll('.tool').forEach(b => { b.setAttribute('aria-pressed', b.dataset.tool === t); b.classList.toggle('locked', toolLocked && b.dataset.tool === t); });
+  svg.classList.toggle('c-create', !!(NODE_TYPES[t] || ETYPES[t]));
+  svg.classList.toggle('c-pan', t === 'hand');
+  hint(); render();
+}
+function hint(){
+  let s;
+  if (pending) s = 'Clique no elemento de destino. Esc cancela.';
+  else if (tool === 'select') s = 'Clique para selecionar · arraste para mover · Shift soma à seleção · Ctrl+roda dá zoom';
+  else if (tool === 'hand') s = 'Arraste para mover a vista';
+  else if (NODE_TYPES[tool]) s = `Clique na folha para inserir: ${NODE_TYPES[tool].label}. Duplo clique na ferramenta a mantém ativa.`;
+  else s = `${ETYPES[tool].full || ETYPES[tool].label}: ${EDGE_HELP[tool] || 'arraste de um elemento até outro.'} Ou clique na origem e depois no destino.`;
+  $('#hint').textContent = s;
+}
+$('#tools').addEventListener('click', e => { const b = e.target.closest('.tool'); if (b) setTool(b.dataset.tool); });
+$('#tools').addEventListener('dblclick', e => { const b = e.target.closest('.tool'); if (b) setTool(b.dataset.tool, true); });
+
+/* ---------- operações ---------- */
+function nextName(type, base){
+  const names = new Set(cur().nodes.map(n => n.name));
+  let i = cur().nodes.filter(n => n.type === type).length + 1;
+  while (names.has(base + i)) i++;
+  return base + i;
+}
+function createNode(type, p, keep){
+  checkpoint();
+  const n = {id:uid(), type, x:0, y:0};
+  if (type === 'class') Object.assign(n, {name:nextName(type, 'Classe'), attrs:[], ops:[], abstract:false, stereotype:''});
+  if (type === 'interface') Object.assign(n, {name:nextName(type, 'Interface'), attrs:[], ops:[]});
+  if (type === 'actor') n.name = nextName(type, 'Ator');
+  if (type === 'usecase') n.name = nextName(type, 'Caso de uso ');
+  if (type === 'note') Object.assign(n, {name:'', text:'Escreva sua nota'});
+  if (type === 'package') Object.assign(n, {name:nextName(type, 'pacote'), w:320, h:220});
+  layout(n); n.x = snap(p.x - n.w/2); n.y = snap(p.y - n.h/2);
+  cur().nodes.push(n); sel = new Set([n.id]);
+  if (!keep && !toolLocked) setTool('select');
+  refresh(); save();
+  if (fine){ const f = $(type === 'note' ? '#f-text' : '#f-name'); if (f){ f.focus(); f.select(); } }
+}
+function addEdge(from, to){
+  checkpoint();
+  const e = {id:uid(), type:tool, from, to, name:'', srcMult:'', tgtMult:''};
+  cur().edges.push(e); sel = new Set([e.id]); pending = null;
+  if (!toolLocked) setTool('select');
+  refresh(); save();
+}
+function deleteSel(){
+  if (!sel.size) return;
+  checkpoint(); const d = cur();
+  d.nodes = d.nodes.filter(n => !sel.has(n.id));
+  const ids = new Set(d.nodes.map(n => n.id));
+  d.edges = d.edges.filter(e => !sel.has(e.id) && ids.has(e.from) && ids.has(e.to));
+  sel.clear(); refresh(); save();
+}
+function copySel(){
+  const d = cur(), ids = new Set([...sel].filter(id => node(id)));
+  if (!ids.size) return false;
+  clip = JSON.parse(JSON.stringify({nodes:d.nodes.filter(n => ids.has(n.id)), edges:d.edges.filter(e => ids.has(e.from) && ids.has(e.to))}, (k, v) => k[0] === '_' ? undefined : v));
+  pasteN = 0; return true;
+}
+function paste(){
+  if (!clip) return;
+  checkpoint(); pasteN++; const map = {}, d = cur();
+  const ns = clip.nodes.map(n => { const m = JSON.parse(JSON.stringify(n)); map[n.id] = m.id = uid(); m.x += 20*pasteN; m.y += 20*pasteN; return m; });
+  const es = clip.edges.map(e => ({...e, id:uid(), from:map[e.from], to:map[e.to]}));
+  d.nodes.push(...ns); d.edges.push(...es); sel = new Set(ns.map(n => n.id)); refresh(); save();
+}
+function duplicate(){ if (copySel()) paste(); }
+function align(kind){
+  const ns = [...sel].map(node).filter(Boolean); if (ns.length < 2) return;
+  checkpoint();
+  if (kind === 'left'){ const v = Math.min(...ns.map(n => n.x)); ns.forEach(n => n.x = v); }
+  if (kind === 'top'){ const v = Math.min(...ns.map(n => n.y)); ns.forEach(n => n.y = v); }
+  if (kind === 'hcenter'){ const v = ns[0].x + ns[0].w/2; ns.forEach(n => n.x = snap(v - n.w/2)); }
+  render(); save();
+}
+function fit(){
+  const d = cur(); d.nodes.forEach(layout);
+  const r = svg.getBoundingClientRect();
+  if (!d.nodes.length){ d.view = {x:60, y:60, z:1}; render(); return; }
+  const x0 = Math.min(...d.nodes.map(n => n.x)), y0 = Math.min(...d.nodes.map(n => n.y)) - 40;
+  const x1 = Math.max(...d.nodes.map(n => n.x + n.w)) + 40, y1 = Math.max(...d.nodes.map(n => n.y + n.h));
+  const z = clamp(Math.min((r.width - 60) / (x1 - x0), (r.height - 80) / (y1 - y0)), .2, 1.25);
+  d.view = {z, x:(r.width - (x1 - x0)*z)/2 - x0*z, y:(r.height - 30 - (y1 - y0)*z)/2 - y0*z};
+  render(); save();
+}
+function zoomAt(cx, cy, f){
+  const v = cur().view, r = svg.getBoundingClientRect(), px = cx - r.left, py = cy - r.top;
+  const nz = clamp(v.z * f, .2, 4);
+  v.x = px - (px - v.x) * (nz / v.z); v.y = py - (py - v.y) * (nz / v.z); v.z = nz;
+  render(); save();
+}
+const zoomCenter = f => { const r = svg.getBoundingClientRect(); zoomAt(r.left + r.width/2, r.top + r.height/2, f); };
+function focusNode(n){
+  const r = svg.getBoundingClientRect(), v = cur().view, c = center(n);
+  const sx = c.x*v.z + v.x, sy = c.y*v.z + v.y;
+  if (sx < 40 || sy < 40 || sx > r.width - 40 || sy > r.height - 40){ v.x = r.width/2 - c.x*v.z; v.y = r.height/2 - c.y*v.z; }
+}
+
+/* ---------- ponteiro ---------- */
+function toWorld(e){ const r = svg.getBoundingClientRect(), v = cur().view; return {x:(e.clientX - r.left - v.x)/v.z, y:(e.clientY - r.top - v.y)/v.z}; }
+function hitAt(e){ const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-kind]'); return el && svg.contains(el) ? el : null; }
+
+svg.addEventListener('pointerdown', e => {
+  if (e.button === 2) return;
+  const p = toWorld(e), hitEl = e.target.closest('[data-kind]'), kind = hitEl?.dataset.kind, id = hitEl?.dataset.id;
+  const d = cur(); lastPointer = p;
+  try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+  if (e.button === 1 || spaceDown || tool === 'hand' || (tool === 'select' && !kind && e.pointerType === 'touch')){
+    e.preventDefault();
+    drag = {mode:'pan', sx:e.clientX, sy:e.clientY, vx:d.view.x, vy:d.view.y}; svg.classList.add('panning'); return;
+  }
+  if (NODE_TYPES[tool]){ createNode(tool, p, e.shiftKey); return; }
+  if (ETYPES[tool]){
+    const nid = (kind === 'node' || kind === 'handle') ? id : null;
+    if (nid && pending){ addEdge(pending.from, nid); return; }
+    if (nid) drag = {mode:'edge', from:nid, start:p, cur:p};
+    else { pending = null; hint(); }
+    render(); return;
+  }
+  if (kind === 'handle'){ checkpoint(); const n = node(id); drag = {mode:'resize', n, start:p, w:n.w, h:n.h}; return; }
+  if (kind === 'node'){
+    if (e.shiftKey) sel.has(id) ? sel.delete(id) : sel.add(id);
+    else if (!sel.has(id)) sel = new Set([id]);
+    const ids = new Set([...sel].filter(i => node(i)));
+    for (const i of [...ids]){ const n = node(i); if (n.type === 'package') d.nodes.forEach(m => { if (m !== n && inside(m, n)) ids.add(m.id); }); }
+    drag = {mode:'move', start:p, orig:[...ids].map(i => { const n = node(i); return {n, x:n.x, y:n.y}; }), moved:false};
+  } else if (kind === 'edge'){
+    if (e.shiftKey) sel.has(id) ? sel.delete(id) : sel.add(id); else sel = new Set([id]);
+  } else {
+    if (!e.shiftKey) sel.clear();
+    drag = {mode:'marquee', start:p, cur:p, base:new Set(sel)};
+  }
+  render(); renderProps(); renderTree();
+});
+svg.addEventListener('pointermove', e => {
+  const p = toWorld(e); lastPointer = p;
+  if (!drag){ if (pending) render(); return; }
+  const d = cur();
+  if (drag.mode === 'pan'){ d.view.x = drag.vx + e.clientX - drag.sx; d.view.y = drag.vy + e.clientY - drag.sy; render(); return; }
+  const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+  if (drag.mode === 'move'){
+    if (!drag.moved){ if (Math.hypot(dx, dy) * d.view.z < 3) return; checkpoint(); drag.moved = true; }
+    for (const o of drag.orig){ o.n.x = e.altKey ? Math.round(o.x + dx) : snap(o.x + dx); o.n.y = e.altKey ? Math.round(o.y + dy) : snap(o.y + dy); }
+    render();
+  } else if (drag.mode === 'resize'){
+    drag.n.w = Math.max(160, snap(drag.w + dx)); drag.n.h = Math.max(100, snap(drag.h + dy)); render();
+  } else if (drag.mode === 'edge'){
+    drag.cur = p; const el = hitAt(e); drag.over = el && el.dataset.kind !== 'edge' ? el.dataset.id : null; render();
+  } else if (drag.mode === 'marquee'){
+    drag.cur = p; const r = rectOf(drag.start, p);
+    sel = new Set(drag.base);
+    d.nodes.forEach(n => { if (n.x < r.x + r.w && n.x + n.w > r.x && n.y < r.y + r.h && n.y + n.h > r.y) sel.add(n.id); });
+    render();
+  }
+});
+function endDrag(e){
+  if (!drag) return;
+  const m = drag; drag = null; svg.classList.remove('panning');
+  if (m.mode === 'edge'){
+    const el = hitAt(e), to = el && el.dataset.kind !== 'edge' ? el.dataset.id : null;
+    const dist = Math.hypot(m.cur.x - m.start.x, m.cur.y - m.start.y);
+    if (to && (to !== m.from || dist > 30)){ addEdge(m.from, to); return; }
+    if (to === m.from){ pending = {from:m.from}; hint(); }
+  }
+  if (m.mode === 'pan' || (m.mode === 'move' && m.moved) || m.mode === 'resize') save();
+  render(); renderProps(); renderTree();
+}
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+svg.addEventListener('dblclick', e => {
+  const el = e.target.closest('[data-kind="node"]'); if (!el || tool !== 'select') return;
+  sel = new Set([el.dataset.id]); render(); renderProps(); renderTree();
+  if (innerWidth <= 860) openDrawer('right');
+  const f = $('#f-text') || $('#f-name'); if (f){ f.focus(); f.select(); }
+});
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) zoomAt(e.clientX, e.clientY, Math.exp(-clamp(e.deltaY, -30, 30) * .01));
+  else { const v = cur().view; v.x -= e.deltaX; v.y -= e.deltaY; render(); save(); }
+}, {passive:false});
+
+/* ---------- teclado ---------- */
+document.addEventListener('keydown', e => {
+  if (!$('#modal').hidden){ if (e.key === 'Escape') closeModal(); return; }
+  const tag = e.target.tagName;
+  if (/INPUT|TEXTAREA|SELECT/.test(tag)){
+    if (e.key === 'Escape' || (e.key === 'Enter' && tag === 'INPUT')) e.target.blur();
+    return;
+  }
+  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (mod){
+    if (k === 'z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    else if (k === 'y'){ e.preventDefault(); redo(); }
+    else if (k === 'd'){ e.preventDefault(); duplicate(); }
+    else if (k === 'c'){ if (copySel()) toast('Copiado'); }
+    else if (k === 'v'){ paste(); }
+    else if (k === 'a'){ e.preventDefault(); sel = new Set(cur().nodes.map(n => n.id)); refresh(); }
+    else if (k === 's'){ e.preventDefault(); openSave(); }
+    return;
+  }
+  if (e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); deleteSel(); return; }
+  if (e.key === 'Escape'){ pending = null; drag = null; sel.clear(); setTool('select'); refresh(); return; }
+  if (e.key === ' '){ e.preventDefault(); if (!spaceDown){ spaceDown = true; svg.classList.add('c-pan'); } return; }
+  if (e.key.startsWith('Arrow')){
+    const ns = [...sel].map(node).filter(Boolean); if (!ns.length) return;
+    e.preventDefault(); if (!e.repeat) checkpoint();
+    const st = e.shiftKey ? 1 : GRID, dx = {ArrowLeft:-st, ArrowRight:st}[e.key] || 0, dy = {ArrowUp:-st, ArrowDown:st}[e.key] || 0;
+    ns.forEach(n => { n.x += dx; n.y += dy; }); render(); save(); return;
+  }
+  if (k === '+' || k === '='){ zoomCenter(1.2); return; }
+  if (k === '-'){ zoomCenter(1/1.2); return; }
+  if (k === '0'){ fit(); return; }
+  const t = TOOLS.flatMap(g => g.items).find(t => t.key === k);
+  if (t) setTool(t.id);
+});
+document.addEventListener('keyup', e => { if (e.key === ' '){ spaceDown = false; svg.classList.toggle('c-pan', tool === 'hand'); } });
+
+/* ---------- painel de propriedades ---------- */
+const props = $('#props');
+const fld = (label, f, val, extra = '') => `<label class="field"><span>${label}</span><input id="f-${f}" data-f="${f}" value="${esc(val)}" ${extra}></label>`;
+const area = (label, f, val, rows, ph, note = '') => `<label class="field"><span>${label}${note ? `<em>${note}</em>` : ''}</span><textarea id="f-${f}" data-f="${f}" rows="${rows}" placeholder="${esc(ph)}" spellcheck="false">${esc(val)}</textarea></label>`;
+const ico = id => `<svg viewBox="0 0 20 20" aria-hidden="true">${ICON[id]}</svg>`;
+function renderProps(){
+  const d = cur(), ids = [...sel];
+  let h = '';
+  if (!ids.length){
+    h = `<div class="sec"><div class="p-head">${ico(d.kind === 'usecase' ? 'diagramUse' : 'diagramClass')}<span>Diagrama</span></div>
+      ${fld('Nome do diagrama', 'dname', d.name)}
+      <div class="meta"><span><b>${d.nodes.length}</b> elementos</span><span><b>${d.edges.length}</b> relações</span></div>
+      <div class="p-actions"><button class="btn outline danger" data-act="del-diagram" ${state.diagrams.length < 2 ? 'disabled title="O projeto precisa de ao menos um diagrama"' : ''}>Excluir diagrama</button></div></div>
+      <div class="sec"><h3>Atalhos</h3><dl class="keys">
+      <dt><kbd>V</kbd> <kbd>H</kbd></dt><dd>Selecionar · mover vista</dd>
+      <dt><kbd>C</kbd> <kbd>I</kbd> <kbd>A</kbd></dt><dd>Classe · interface · ator</dd>
+      <dt><kbd>U</kbd> <kbd>N</kbd> <kbd>P</kbd></dt><dd>Caso de uso · nota · pacote</dd>
+      <dt><kbd>Espaço</kbd>+arrastar</dt><dd>Mover a vista</dd>
+      <dt><kbd>Ctrl</kbd>+roda</dt><dd>Zoom</dd>
+      <dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd>Duplicar</dd>
+      <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></dt><dd>Desfazer · refazer</dd>
+      <dt><kbd>Del</kbd></dt><dd>Excluir seleção</dd>
+      <dt><kbd>Setas</kbd></dt><dd>Mover 10 px (Shift: 1 px)</dd>
+      <dt><kbd>Alt</kbd>+arrastar</dt><dd>Mover sem grade</dd>
+      </dl></div>`;
+  } else if (ids.length > 1){
+    const nn = ids.filter(node).length;
+    h = `<div class="sec"><div class="p-head">${ico('multi')}<span>${ids.length} itens selecionados</span></div>
+      <p class="hint">${nn} elemento(s) e ${ids.length - nn} relação(ões).</p>
+      ${nn > 1 ? `<div class="p-actions"><button class="btn outline" data-act="align-left">Alinhar à esquerda</button><button class="btn outline" data-act="align-top">Alinhar ao topo</button><button class="btn outline" data-act="align-hcenter">Centralizar</button></div>` : ''}
+      <div class="p-actions">${nn ? '<button class="btn outline" data-act="duplicate">Duplicar</button>' : ''}<button class="btn outline danger" data-act="delete">Excluir</button></div></div>`;
+  } else {
+    const n = node(ids[0]);
+    if (n){
+      h = `<div class="sec"><div class="p-head">${ico(n.type)}<span>${NODE_TYPES[n.type].label}</span></div>`;
+      if (n.type !== 'note') h += fld('Nome', 'name', n.name);
+      if (n.type === 'class'){
+        h += fld('Estereótipo', 'stereotype', n.stereotype, 'placeholder="ex.: entity, enumeration"');
+        h += `<label class="check"><input type="checkbox" id="f-abstract" data-f="abstract" ${n.abstract ? 'checked' : ''}> Classe abstrata (nome em itálico)</label>`;
+      }
+      if (n.type === 'class' || n.type === 'interface'){
+        h += area('Atributos', 'attrs', n.attrs.join('\n'), 4, '- nome: String', 'um por linha');
+        h += area('Operações', 'ops', n.ops.join('\n'), 4, '+ salvar(): void', 'uma por linha');
+        h += `<p class="hint">Visibilidade: <code>+</code> pública · <code>-</code> privada · <code>#</code> protegida · <code>~</code> pacote</p>`;
+      }
+      if (n.type === 'note') h += area('Texto', 'text', n.text, 5, 'Comentário');
+      if (n.type === 'package') h += `<p class="hint">Elementos colocados dentro do pacote se movem junto com ele. Arraste o canto inferior direito para redimensionar.</p>`;
+      const rels = d.edges.filter(e => e.from === n.id || e.to === n.id);
+      h += `<div class="p-actions"><button class="btn outline" data-act="duplicate">Duplicar</button><button class="btn outline danger" data-act="delete">Excluir</button></div></div>`;
+      if (rels.length) h += `<div class="sec"><h3>Relações (${rels.length})</h3><ul class="list">${rels.map(e => {
+        const o = node(e.from === n.id ? e.to : e.from);
+        return `<li><button class="item" data-pick="${e.id}">${ico(e.type)}<span>${ETYPES[e.type].full || ETYPES[e.type].label} ${e.from === n.id ? '→' : '←'} ${esc(o?.name || 'nota')}</span></button></li>`; }).join('')}</ul></div>`;
+    } else {
+      const e = edge(ids[0]), T = ETYPES[e.type], a = node(e.from), b = node(e.to);
+      const nm = x => esc(x?.type === 'note' ? 'Nota' : x?.name);
+      h = `<div class="sec"><div class="p-head">${ico(e.type)}<span>Relação</span></div>
+        <label class="field"><span>Tipo</span><select id="f-type" data-f="type">${Object.entries(ETYPES).map(([k, t]) => `<option value="${k}" ${k === e.type ? 'selected' : ''}>${t.full || t.label}</option>`).join('')}</select></label>
+        ${fld('Nome', 'name', e.name, 'placeholder="opcional"')}
+        ${T.mult ? `<div class="two">${fld('Mult. origem', 'srcMult', e.srcMult, 'placeholder="1"')}${fld('Mult. destino', 'tgtMult', e.tgtMult, 'placeholder="0..*"')}</div>` : ''}
+        <p class="hint">De <b>${nm(a)}</b> para <b>${nm(b)}</b></p>
+        <div class="p-actions"><button class="btn outline" data-act="reverse">Inverter sentido</button><button class="btn outline danger" data-act="delete">Excluir</button></div></div>`;
+    }
+  }
+  props.innerHTML = h;
+}
+function targetOf(){
+  const ids = [...sel]; if (!ids.length) return cur();
+  return node(ids[0]) || edge(ids[0]);
+}
+props.addEventListener('focusin', e => { if (e.target.dataset.f) pendingSnap = snapshot(); });
+props.addEventListener('input', e => {
+  const f = e.target.dataset.f; if (!f) return;
+  if (pendingSnap){ history.push(pendingSnap); future = []; pendingSnap = null; undoBtns(); }
+  const o = targetOf(), v = e.target.value;
+  if (f === 'dname') o.name = v;
+  else if (f === 'attrs' || f === 'ops') o[f] = v.split('\n').map(s => s.trimEnd()).filter(s => s.trim());
+  else if (f === 'abstract') o.abstract = e.target.checked;
+  else if (f === 'type'){ o.type = v; render(); renderProps(); renderTree(); save(); return; }
+  else o[f] = v;
+  render(); renderTree(); save();
+});
+let armT;
+props.addEventListener('click', e => {
+  const pick = e.target.closest('[data-pick]');
+  if (pick){ sel = new Set([pick.dataset.pick]); refresh(); return; }
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act;
+  if (a === 'delete') deleteSel();
+  else if (a === 'duplicate') duplicate();
+  else if (a.startsWith('align-')) align(a.slice(6));
+  else if (a === 'reverse'){ const ed = targetOf(); checkpoint(); [ed.from, ed.to] = [ed.to, ed.from]; [ed.srcMult, ed.tgtMult] = [ed.tgtMult, ed.srcMult]; refresh(); save(); }
+  else if (a === 'del-diagram'){
+    if (b.dataset.armed){
+      clearTimeout(armT); checkpoint();
+      state.diagrams = state.diagrams.filter(d => d !== cur()); state.current = state.diagrams[0].id;
+      sel.clear(); refresh(); save(); toast('Diagrama excluído. Ctrl+Z desfaz.');
+    } else {
+      b.dataset.armed = '1'; b.textContent = 'Clique de novo para confirmar';
+      armT = setTimeout(() => { delete b.dataset.armed; b.textContent = 'Excluir diagrama'; }, 3500);
+    }
+  }
+});
+
+/* ---------- navegador do modelo ---------- */
+const left = $('#left');
+function renderTree(){
+  const d = cur();
+  const order = ['package', 'class', 'interface', 'actor', 'usecase', 'note'];
+  const ns = [...d.nodes].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type) || String(a.name).localeCompare(b.name));
+  left.innerHTML = `<div class="sec"><h3>Diagramas</h3>
+    <ul class="list">${state.diagrams.map(x => `<li><button class="item${x === d ? ' on' : ''}" data-diagram="${x.id}">${ico(x.kind === 'usecase' ? 'diagramUse' : 'diagramClass')}<span>${esc(x.name)}</span><small>${x.nodes.length}</small></button></li>`).join('')}</ul>
+    <div class="addrow"><button class="btn" data-newd="class">+ Classes</button><button class="btn" data-newd="usecase">+ Casos de uso</button></div></div>
+    <div class="sec"><h3>Elementos deste diagrama</h3>
+    ${ns.length ? `<ul class="list">${ns.map(n => `<li><button class="item${sel.has(n.id) ? ' on' : ''}" data-node="${n.id}">${ico(n.type)}<span>${esc(n.type === 'note' ? (n.text || '').split('\n')[0] : n.name)}</span></button></li>`).join('')}</ul>`
+      : '<p class="empty">Nenhum elemento ainda. Escolha uma ferramenta em Elementos e clique na folha.</p>'}</div>
+    <div class="sec"><p class="hint">O projeto é salvo automaticamente neste navegador. Use <b>Salvar</b> para guardar uma cópia em JSON.</p></div>`;
+}
+left.addEventListener('click', e => {
+  const dg = e.target.closest('[data-diagram]'), nd = e.target.closest('[data-node]'), nw = e.target.closest('[data-newd]');
+  if (dg){ state.current = dg.dataset.diagram; sel.clear(); pending = null; refresh(); save(); closeDrawers(); }
+  if (nd){ const n = node(nd.dataset.node); sel = new Set([n.id]); focusNode(n); refresh(); closeDrawers(); }
+  if (nw){
+    checkpoint(); const kind = nw.dataset.newd;
+    const d = {id:uid(), kind, name:kind === 'usecase' ? 'Novo diagrama de casos de uso' : 'Novo diagrama de classes', nodes:[], edges:[], view:{x:60, y:60, z:1}};
+    state.diagrams.push(d); state.current = d.id; sel.clear(); refresh(); save();
+    if (fine){ const f = $('#f-dname'); f?.focus(); f?.select(); }
+  }
+});
+
+/* ---------- gavetas (telas estreitas) ---------- */
+function openDrawer(which){ closeDrawers(); $('#' + which).classList.add('open'); $('#scrim').classList.add('on'); }
+function closeDrawers(){ $('#left').classList.remove('open'); $('#right').classList.remove('open'); $('#scrim').classList.remove('on'); }
+$('#scrim').addEventListener('click', closeDrawers);
+
+/* ---------- modal, arquivos e exportação ---------- */
+function openModal(title, html){ $('#mTitle').textContent = title; $('#mBody').innerHTML = html; $('#modal').hidden = false; }
+function closeModal(){ $('#modal').hidden = true; $('#mBody').innerHTML = ''; }
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal' || e.target.closest('[data-close]')) closeModal(); });
+async function copyText(ta){
+  try { await navigator.clipboard.writeText(ta.value); toast('Copiado para a área de transferência'); }
+  catch (_) { ta.focus(); ta.select(); toast('Texto selecionado. Use Ctrl+C para copiar.'); }
+}
+$('#mBody').addEventListener('click', e => {
+  const b = e.target.closest('[data-m]'); if (!b) return;
+  const a = b.dataset.m;
+  if (a === 'copy') copyText($('#mText'));
+  if (a === 'pick') $('#fileIn').click();
+  if (a === 'load') importText($('#mText').value);
+  if (a === 'blank' || a === 'sample'){
+    checkpoint();
+    state = a === 'sample' ? sample() : {diagrams:[{id:uid(), kind:'class', name:'Diagrama de classes', nodes:[], edges:[], view:{x:60, y:60, z:1}}]};
+    if (a === 'blank') state.current = state.diagrams[0].id;
+    sel.clear(); closeModal(); refresh(); if (a === 'sample') fit(); save();
+    toast(a === 'sample' ? 'Exemplo carregado' : 'Projeto novo criado. Ctrl+Z desfaz.');
+  }
+});
+function importText(txt){
+  try {
+    const s = normalize(JSON.parse(txt));
+    checkpoint(); state = s; sel.clear(); closeModal(); refresh(); fit(); save(); toast('Projeto aberto');
+  } catch (err){
+    const m = $('#mErr'); if (m) m.textContent = 'Não foi possível abrir: ' + (err.message || 'JSON inválido') + ' Confira se é um arquivo salvo pelo Traço UML.';
+    else toast('Arquivo inválido');
+  }
+}
+$('#fileIn').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = () => importText(r.result); r.readAsText(f); e.target.value = '';
+});
+function openSave(){
+  openModal('Salvar projeto', `<p class="hint">Copie o JSON abaixo e guarde num arquivo <code>.json</code>. Para reabrir, use <b>Abrir</b>. O projeto também fica salvo automaticamente neste navegador.</p>
+    <textarea id="mText" readonly>${esc(JSON.stringify(JSON.parse(snapshot()), null, 2))}</textarea>
+    <div class="p-actions"><button class="btn primary" data-m="copy">Copiar JSON</button></div>`);
+}
+function openOpen(){
+  openModal('Abrir projeto', `<div class="p-actions"><button class="btn primary" data-m="pick">Escolher arquivo .json</button></div>
+    <p class="hint">Ou cole o conteúdo do arquivo:</p><textarea id="mText" placeholder='{"diagrams": [...]}'></textarea>
+    <p class="hint" id="mErr" style="color:var(--danger)"></p>
+    <div class="p-actions"><button class="btn outline" data-m="load">Carregar texto colado</button></div>`);
+}
+const EXPORT_CSS = `.shape{fill:#fff;stroke:#17232C;stroke-width:1.25}.head{fill:#E2F0ED}.div{stroke:#17232C;stroke-width:1;fill:none}
+text{font-family:'IBM Plex Sans',Arial,sans-serif;fill:#17232C}.t-name{font-size:13px;font-weight:600}.it{font-style:italic}.t-st{font-size:11px;fill:#5B6C73}
+.t-mem{font-family:'IBM Plex Mono',Consolas,monospace;font-size:12px}.t-plain{font-size:13px}.t-note{font-size:12.5px}
+.note-shape{fill:#FFF5CC;stroke:#B39D4E;stroke-width:1.25}.note-fold{fill:none;stroke:#B39D4E;stroke-width:1.25}.pkg{fill:#F8FBFA;stroke:#17232C;stroke-width:1.25}
+.stick{fill:none;stroke:#17232C;stroke-width:1.6;stroke-linecap:round}.stick-head{fill:#fff;stroke:#17232C;stroke-width:1.6}
+.e-line{fill:none;stroke:#17232C;stroke-width:1.25}.dash{stroke-dasharray:6 4}
+.t-edge{font-size:11.5px;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+.t-mult{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+.mk-hollow{fill:#fff;stroke:#17232C;stroke-width:1.25}.mk-fill{fill:#17232C;stroke:#17232C;stroke-width:1.25}.mk-open{fill:none;stroke:#17232C;stroke-width:1.25}`;
+function exportSVG(){
+  const d = cur(); if (!d.nodes.length){ toast('O diagrama está vazio'); return null; }
+  const body = diagramSVG(d, true), m = 30;
+  const xs = d.nodes.flatMap(n => [n.x, n.x + n.w]), ys = d.nodes.flatMap(n => [n.y, n.y + n.h]);
+  const x0 = Math.min(...xs) - m, y0 = Math.min(...ys) - m - 40, w = Math.max(...xs) - x0 + m + 40, h = Math.max(...ys) - y0 + m;
+  return {w, h, svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x0} ${y0} ${w} ${h}"><style>${EXPORT_CSS}</style><defs>${DEFS}</defs><rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="#fff"/>${body}</svg>`};
+}
+function openSVG(){
+  const r = exportSVG(); if (!r) return;
+  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(r.svg);
+  openModal('Exportar SVG', `<div class="preview"><img src="${url}" alt="Prévia do diagrama"></div>
+    <p class="hint">Copie o código e salve como <code>.svg</code>, ou clique com o botão direito na prévia e escolha “Salvar imagem como”.</p>
+    <textarea id="mText" readonly>${esc(r.svg)}</textarea><div class="p-actions"><button class="btn primary" data-m="copy">Copiar SVG</button></div>`);
+}
+function openPNG(){
+  const r = exportSVG(); if (!r) return;
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'), k = 2; c.width = r.w * k; c.height = r.h * k;
+    const g = c.getContext('2d'); g.scale(k, k); g.drawImage(img, 0, 0);
+    let src; try { src = c.toDataURL('image/png'); } catch (_) { src = img.src; }
+    openModal('Exportar PNG', `<div class="preview"><img src="${src}" alt="Diagrama em PNG"></div>
+      <p class="hint">Clique com o botão direito na imagem e escolha “Salvar imagem como” (no celular, toque e segure). Resolução: ${r.w*k} × ${r.h*k} px.</p>`);
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(r.svg);
+}
+
+/* ---------- barra superior ---------- */
+document.querySelector('.top').addEventListener('click', e => {
+  const b = e.target.closest('[data-cmd]'); if (!b) return;
+  ({
+    'new':() => openModal('Novo projeto', `<p>O projeto atual será substituído. Se quiser guardá-lo, use <b>Salvar</b> antes.</p>
+      <div class="p-actions"><button class="btn primary" data-m="blank">Começar projeto vazio</button><button class="btn outline" data-m="sample">Carregar exemplo da biblioteca</button></div>`),
+    open:openOpen, save:openSave, svg:openSVG, png:openPNG, undo, redo, fit,
+    'zoom-in':() => zoomCenter(1.2), 'zoom-out':() => zoomCenter(1/1.2),
+    'zoom-reset':() => { const r = svg.getBoundingClientRect(); zoomAt(r.left + r.width/2, r.top + r.height/2, 1 / cur().view.z); },
+    'toggle-left':() => $('#left').classList.contains('open') ? closeDrawers() : openDrawer('left'),
+    'toggle-right':() => $('#right').classList.contains('open') ? closeDrawers() : openDrawer('right'),
+  })[b.dataset.cmd]?.();
+});
+
+let toastT;
+function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 1800); }
+function refresh(){ render(); renderProps(); renderTree(); hint(); }
+
+/* ---------- início ---------- */
+state = load();
+const fresh = (() => { try { return !localStorage.getItem(KEY); } catch (_) { return true; } })();
+buildTools(); setTool('select'); undoBtns(); refresh();
+if (fresh) requestAnimationFrame(fit);
+document.fonts?.ready.then(() => { render(); if (fresh) fit(); });
+})();
+</script>
+</body>
+</html>
