@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Traço UML</title>
+<meta name="description" content="Editor de diagramas de classes UML no navegador, com modelo compartilhado, geração de código e exportação XMI.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="11" height="10" rx="1"/><path d="M3 7h11"/><rect x="12" y="15" width="9" height="6" rx="1"/><path d="M8.5 13v5H12"/></svg>
+      Traço UML
+    </div>
+    <div class="crumb" id="crumb"></div>
+    <nav class="actions" aria-label="Ações">
+      <button class="btn only-narrow" data-cmd="toggle-left" title="Diagramas e modelo"><svg viewBox="0 0 20 20"><path d="M3 5h14M3 10h14M3 15h14"/></svg></button>
+      <button class="btn only-narrow" data-cmd="toggle-right" title="Propriedades"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 14h12"/><circle cx="8" cy="6" r="2"/><circle cx="13" cy="14" r="2"/></svg></button>
+      <button class="btn" data-cmd="new" title="Novo projeto"><svg viewBox="0 0 20 20"><path d="M5 2.5h7l3.5 3.5v11.5H5z"/><path d="M12 2.5V6h3.5"/></svg><span class="wide-only">Novo</span></button>
+      <button class="btn" data-cmd="open" title="Abrir projeto"><svg viewBox="0 0 20 20"><path d="M2.5 5.5h5l1.5 2h8.5v8.5h-15z"/></svg><span class="wide-only">Abrir</span></button>
+      <button class="btn" data-cmd="save" title="Salvar projeto (Ctrl+S)"><svg viewBox="0 0 20 20"><path d="M4 3h10l2.5 2.5V17H4z"/><path d="M7 3v4h6V3M7 17v-5h6v5"/></svg><span class="wide-only">Salvar</span></button>
+      <button class="btn" data-menu="export" aria-haspopup="menu" title="Exportar imagem, XMI ou JSON"><svg viewBox="0 0 20 20"><path d="M10 3v9M6 8l4 4 4-4M4 15.5h12"/></svg><span>Exportar</span><svg class="caret" viewBox="0 0 20 20"><path d="M5 8l5 5 5-5"/></svg></button>
+      <button class="btn" data-menu="code" aria-haspopup="menu" title="Gerar ou importar código"><svg viewBox="0 0 20 20"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg><span>Código</span><svg class="caret" viewBox="0 0 20 20"><path d="M5 8l5 5 5-5"/></svg></button>
+      <button class="btn" data-cmd="validate" title="Verificar consistência do modelo"><svg viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9"/></svg><span class="wide-only">Verificar</span><span class="badge" id="issueBadge" hidden></span></button>
+      <span class="sep"></span>
+      <button class="btn" data-cmd="undo" id="bUndo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><svg viewBox="0 0 20 20"><path d="M7.5 5L4 8.5 7.5 12"/><path d="M4 8.5h8a4 4 0 010 8H9"/></svg></button>
+      <button class="btn" data-cmd="redo" id="bRedo" title="Refazer (Ctrl+Y)" aria-label="Refazer"><svg viewBox="0 0 20 20"><path d="M12.5 5L16 8.5 12.5 12"/><path d="M16 8.5H8a4 4 0 000 8h3"/></svg></button>
+      <span class="sep"></span>
+      <button class="btn" data-cmd="zoom-out" title="Afastar (-)" aria-label="Afastar"><svg viewBox="0 0 20 20"><path d="M5 10h10"/></svg></button>
+      <button class="btn zoom" data-cmd="zoom-reset" id="zoomLbl" title="Voltar a 100%">100%</button>
+      <button class="btn" data-cmd="zoom-in" title="Aproximar (+)" aria-label="Aproximar"><svg viewBox="0 0 20 20"><path d="M5 10h10M10 5v10"/></svg></button>
+      <button class="btn outline" data-cmd="fit" title="Enquadrar o diagrama (0)"><svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/></svg><span class="wide-only">Enquadrar</span></button>
+    </nav>
+  </header>
+
+  <div class="tools" id="tools" role="toolbar" aria-label="Ferramentas"></div>
+
+  <aside class="side left" id="left" aria-label="Navegador do modelo">
+    <div class="sec">
+      <h3>Diagramas <button class="iconbtn" data-cmd="new-diagram" title="Novo diagrama" aria-label="Novo diagrama">+</button></h3>
+      <ul class="list" id="dlist"></ul>
+    </div>
+    <div class="sec">
+      <h3>Modelo <button class="iconbtn" data-cmd="new-package" title="Novo pacote" aria-label="Novo pacote">+</button></h3>
+      <input id="search" type="search" placeholder="Buscar classe, atributo… (Ctrl+F)" aria-label="Buscar no modelo" autocomplete="off">
+      <div id="mtree"></div>
+      <p class="hint">Itens em itálico estão fora deste diagrama. Arraste-os para a folha ou dê duplo clique.</p>
+    </div>
+  </aside>
+
+  <main class="canvas" id="canvas">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg" aria-label="Folha de desenho"><g id="vp"></g></svg>
+    <div class="status"><span id="hint"></span><button id="miniBtn" type="button" aria-pressed="true" title="Mostrar ou ocultar o minimapa">Minimapa</button></div>
+    <svg id="mini" class="mini" aria-label="Minimapa"></svg>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </main>
+
+  <aside class="side right" id="right" aria-label="Propriedades"><div id="props"></div></aside>
+  <div class="scrim" id="scrim"></div>
+</div>
+
+<div class="menu" id="menu" role="menu" hidden></div>
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <header><h2 id="mTitle"></h2><button class="btn" data-close title="Fechar" aria-label="Fechar"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></button></header>
+    <div class="body" id="mBody"></div>
+  </div>
+</div>
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+<datalist id="multList"><option value="1"></option><option value="0..1"></option><option value="0..*"></option><option value="1..*"></option><option value="*"></option></datalist>
+<datalist id="stList"><option value="entity"></option><option value="boundary"></option><option value="control"></option><option value="service"></option><option value="repository"></option><option value="dto"></option><option value="utility"></option><option value="exception"></option></datalist>
+<datalist id="depList"><option value="use"></option><option value="create"></option><option value="call"></option><option value="instantiate"></option><option value="import"></option><option value="access"></option></datalist>
+
+<script src="js/core.js"></script>
+<script src="js/codegen.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
