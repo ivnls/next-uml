@@ -1,5 +1,5 @@
 {
-  "name": "traco-uml",
+  "name": "nextuml",
   "version": "2.0.0",
   "description": "Editor de diagramas de classes UML no navegador.",
   "private": true,

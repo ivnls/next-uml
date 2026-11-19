@@ -1,4 +1,4 @@
-# Traço UML
+# NextUML
 
 Editor de **diagramas de classes UML** que roda direto no navegador, feito em HTML, CSS e JavaScript puros, sem dependências. O build gera um único `index.html`, que pode ser aberto localmente ou publicado em qualquer hospedagem estática.
 
