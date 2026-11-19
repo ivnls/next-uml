@@ -1,4 +1,4 @@
-/* Traço UML — layout dos elementos e geração do SVG de um diagrama. */
+/* NextUML — layout dos elementos e geração do SVG de um diagrama. */
 (function (G) {
   'use strict';
   const UML = (G.UML = G.UML || {});

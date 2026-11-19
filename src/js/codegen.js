@@ -1,4 +1,4 @@
-/* Traço UML — validação, geração de código, XMI e engenharia reversa. Sem DOM. */
+/* NextUML — validação, geração de código, XMI e engenharia reversa. Sem DOM. */
 (function (G) {
   'use strict';
   const UML = (G.UML = G.UML || {});

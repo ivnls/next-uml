@@ -1,10 +1,10 @@
-/* Traço UML — editor: estado, interação, painéis e janelas. */
+/* NextUML — editor: estado, interação, painéis e janelas. */
 (() => {
   'use strict';
   const U = window.UML;
   const $ = s => document.querySelector(s);
   const esc = U.esc;
-  const KEY = 'tracouml.v2', OLD_KEY = 'tracouml.v1';
+  const KEY = 'nextuml.v2', LEGACY_KEY = 'tracouml.v2', OLD_KEY = 'tracouml.v1';
   const GRID = 10;
   const snap = v => Math.round(v / GRID) * GRID;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -100,7 +100,7 @@
 
   /* ---------- persistência e histórico ---------- */
   function load() {
-    try { const raw = localStorage.getItem(KEY); if (raw) return U.normalize(JSON.parse(raw)); } catch (_) { /* segue com o exemplo */ }
+    try { const raw = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY); if (raw) return U.normalize(JSON.parse(raw)); } catch (_) { /* segue com o exemplo */ }
     return null;
   }
   let saveT, issueT;
@@ -192,7 +192,7 @@
   mini.addEventListener('pointerdown', e => { e.preventDefault(); mini.setPointerCapture(e.pointerId); miniNav(e); });
   mini.addEventListener('pointermove', e => { if (e.buttons) miniNav(e); });
   mini.addEventListener('pointerup', save);
-  $('#miniBtn').addEventListener('click', () => { showMini = !showMini; try { localStorage.setItem('tracouml.mini', showMini ? '1' : '0'); } catch (_) { /* */ } render(); });
+  $('#miniBtn').addEventListener('click', () => { showMini = !showMini; try { localStorage.setItem('nextuml.mini', showMini ? '1' : '0'); } catch (_) { /* */ } render(); });
 
   /* ---------- ferramentas ---------- */
   function buildTools() {
@@ -1392,7 +1392,7 @@
       toast('Projeto aberto');
     } catch (err) {
       const m = $('#mErr');
-      const msg = 'Não foi possível abrir: ' + (err instanceof SyntaxError ? 'o conteúdo não é um JSON válido.' : err.message) + ' Confira se o arquivo foi salvo pelo Traço UML.';
+      const msg = 'Não foi possível abrir: ' + (err instanceof SyntaxError ? 'o conteúdo não é um JSON válido.' : err.message) + ' Confira se o arquivo foi salvo pelo NextUML.';
       if (m) m.textContent = msg; else toast(msg);
     }
   }
@@ -1417,7 +1417,7 @@
       <div class="p-actions"><button class="btn outline" data-m="load">Abrir texto colado</button></div>`);
   }
   function openSave() {
-    mctxState = { name: slug(P.name) + '.traco.json', type: 'application/json' };
+    mctxState = { name: slug(P.name) + '.nextuml.json', type: 'application/json' };
     openModal('Salvar projeto', `<p class="hint">O projeto fica salvo automaticamente neste navegador. Para guardar uma cópia ou levar para outro computador, baixe ou copie o arquivo.</p>
       <textarea id="mText" class="code" readonly>${esc(JSON.stringify(JSON.parse(snapshot()), null, 2))}</textarea>
       <div class="p-actions"><button class="btn primary" data-m="dl" autofocus>Baixar ${esc(mctxState.name)}</button><button class="btn outline" data-m="copy">Copiar JSON</button></div>`);
@@ -1479,7 +1479,7 @@
     s.type = 'text/plain';
   }
   function openImport() {
-    openModal('Importar código', `<p class="hint">Cole classes, interfaces e enums em Java ou TypeScript. O Traço UML cria os elementos, heranças e realizações; elementos com o mesmo nome são atualizados.</p>
+    openModal('Importar código', `<p class="hint">Cole classes, interfaces e enums em Java ou TypeScript. O NextUML cria os elementos, heranças e realizações; elementos com o mesmo nome são atualizados.</p>
       <label class="field"><span>Linguagem</span><select id="icLang"><option value="java">Java</option><option value="ts">TypeScript</option></select></label>
       <textarea id="mText" class="code tall" spellcheck="false" placeholder="public class Pedido {\n    private List&lt;Item&gt; itens;\n    public BigDecimal total() { ... }\n}" autofocus></textarea>
       <label class="check"><input type="checkbox" id="icAssoc" checked><span>Transformar atributos cujo tipo é uma classe do modelo em associações</span></label>
@@ -1550,7 +1550,7 @@
   P = load();
   const fresh = !P;
   if (!P) P = U.normalize(U.sample());
-  try { showMini = localStorage.getItem('tracouml.mini') !== '0'; } catch (_) { /* */ }
+  try { showMini = localStorage.getItem('nextuml.mini') !== '0'; } catch (_) { /* */ }
   buildTools();
   setTool('select');
   refresh();

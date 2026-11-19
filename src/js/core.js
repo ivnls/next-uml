@@ -1,4 +1,4 @@
-/* Traço UML — modelo de dados, sintaxe UML de membros, normalização e migração.
+/* NextUML — modelo de dados, sintaxe UML de membros, normalização e migração.
    Não depende do DOM: roda no navegador e no Node (testes). */
 (function (G) {
   'use strict';
@@ -239,7 +239,7 @@
   UML.normalize = function (p) {
     if (!p || typeof p !== 'object') throw new Error('Conteúdo vazio ou inválido.');
     if (Array.isArray(p.diagrams) && p.diagrams.some(d => Array.isArray(d.nodes))) p = UML.migrateV1(p);
-    if (!p.elements || typeof p.elements !== 'object' || !Array.isArray(p.diagrams)) throw new Error('O arquivo não parece ser um projeto do Traço UML.');
+    if (!p.elements || typeof p.elements !== 'object' || !Array.isArray(p.diagrams)) throw new Error('O arquivo não parece ser um projeto do NextUML.');
     p.version = 2;
     p.name = p.name || 'Projeto';
     p.relations = p.relations && typeof p.relations === 'object' ? p.relations : {};
