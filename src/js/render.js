@@ -163,7 +163,8 @@
     if (ox1 - ox0 >= 16) { const x = (ox0 + ox1) / 2; return cb.y > ca.y ? [{ x, y: a.y + a._h }, { x, y: b.y }] : [{ x, y: a.y }, { x, y: b.y + b._h }]; }
     if (oy1 - oy0 >= 16) { const y = (oy0 + oy1) / 2; return cb.x > ca.x ? [{ x: a.x + a._w, y }, { x: b.x, y }] : [{ x: a.x, y }, { x: b.x + b._w, y }]; }
     const gx = Math.max(b.x - (a.x + a._w), a.x - (b.x + b._w)), gy = Math.max(b.y - (a.y + a._h), a.y - (b.y + b._h));
-    if (gx >= gy) {
+    // Preferir o traçado vertical (árvore de herança); horizontal só quando o vão lateral domina.
+    if (gx > gy * 1.6) {
       const p1 = { x: cb.x > ca.x ? a.x + a._w : a.x, y: ca.y }, p2 = { x: cb.x > ca.x ? b.x : b.x + b._w, y: cb.y }, mx = (p1.x + p2.x) / 2;
       return [p1, { x: mx, y: p1.y }, { x: mx, y: p2.y }, p2];
     }
@@ -278,13 +279,16 @@
     if (assoc && raw.length >= 2) {
       for (const k of [0, 1]) {
         const end = r.ends[k], { u, nn } = E[k];
-        const back = end.agg !== 'none' ? 34 : 20;
-        const base = { x: anchors[k].x - u.x * back, y: anchors[k].y - u.y * back };
         const s = sideOf(nn), vertical = Math.abs(u.y) > Math.abs(u.x);
+        // Em linhas mais horizontais, o texto cresce para longe da caixa e não a invade.
+        const back = vertical ? (end.agg !== 'none' ? 34 : 20) : end.agg !== 'none' ? 30 : end.nav === 'nav' ? 17 : 8;
+        const away = vertical ? null : u.x > 0 ? 'end' : 'start';
+        const base = { x: anchors[k].x - u.x * back, y: anchors[k].y - u.y * back };
+        const at = (side, dist) => { const q = placed(base, side, dist, vertical); if (away) q.anchor = away; return q; };
         const role = (end.vis && end.role ? end.vis : '') + (end.role || '');
-        if (role) { const q = placed(base, s, 11, vertical); labels += label('t-edge', 'r' + k, q.x, q.y, q.anchor, role, o, ev); }
-        if (end.constraint) { const q = placed(base, s, vertical ? 11 : 24, vertical); labels += label('t-edge', 'c' + k, q.x, q.y + (vertical ? 13 : 0), q.anchor, `{${end.constraint}}`, o, ev); }
-        if (end.mult) { const q = placed(base, { x: -s.x, y: -s.y }, 11, vertical); labels += label('t-mult', 'm' + k, q.x, q.y, q.anchor, end.mult, o, ev); }
+        if (role) { const q = at(s, 11); labels += label('t-edge', 'r' + k, q.x, q.y, q.anchor, role, o, ev); }
+        if (end.constraint) { const q = at(s, vertical ? 11 : 24); labels += label('t-edge', 'c' + k, q.x, q.y + (vertical ? 13 : 0), q.anchor, `{${end.constraint}}`, o, ev); }
+        if (end.mult) { const q = at({ x: -s.x, y: -s.y }, 11); labels += label('t-mult', 'm' + k, q.x, q.y, q.anchor, end.mult, o, ev); }
       }
     }
     const on = !o.exp && o.sel && o.sel.has(ev.id);

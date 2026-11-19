@@ -955,6 +955,12 @@ textarea.code.short { min-height: 110px; }
     }
     return out;
   }
+  // Valor padrão que é literal de uma enumeração do modelo vira Tipo.LITERAL no código.
+  const enumDefault = (p, type, def) => {
+    const e = UML.classifierByName(p, String(type || '').trim());
+    const d = String(def || '').trim();
+    return e && e.kind === 'enumeration' && e.literals.some(l => l.name === d) ? `${e.name}.${d}` : def;
+  };
   const genParents = (p, c, kind) => Object.values(p.relations).filter(r => r.kind === kind && r.source === c.id).map(r => p.elements[r.target]).filter(e => e && UML.isClassifier(e.kind));
   const docLines = (doc, pre) => (doc ? doc.split('\n').map(l => pre + l) : []);
   const selected = (p, ids) => classifiers(p).filter(c => c.kind !== 'primitive' && (!ids || ids.has(c.id)));
@@ -1006,7 +1012,7 @@ textarea.code.short { min-height: 110px; }
     if (isEnum) body.push('    ' + (c.literals.map(l => l.name).join(',\n    ') || '') + ';', '');
     for (const a of c.attributes) {
       const many = UML.isMany(a.mult);
-      let def = a.def ? ' = ' + a.def : many && !iface ? ' = new ArrayList<>()' : '';
+      let def = a.def ? ' = ' + enumDefault(p, a.type, a.def) : many && !iface ? ' = new ArrayList<>()' : '';
       if (isEnum && a.def && !a.isStatic) def = '';
       if (iface) body.push(`    ${jType(a.type, many)} ${a.name}${def || ' = null'};`);
       else body.push(`    ${JV[a.vis]}${a.isStatic ? 'static ' : ''}${a.readOnly ? 'final ' : ''}${jType(a.type, many)} ${a.name}${def};`);
@@ -1037,7 +1043,7 @@ textarea.code.short { min-height: 110px; }
     Integer: 'number', Long: 'number', Short: 'number', Byte: 'number', Float: 'number', Double: 'number',
     String: 'string', char: 'string', Character: 'string', UUID: 'string', str: 'string',
     boolean: 'boolean', Boolean: 'boolean', bool: 'boolean',
-    Date: 'Date', LocalDate: 'Date', LocalDateTime: 'Date', Instant: 'Date', Object: 'unknown',
+    Date: 'Date', LocalDate: 'Date', LocalDateTime: 'Date', Instant: 'Date', LocalTime: 'string', Duration: 'number', Object: 'unknown',
   };
   const tsType = (t, many) => {
     let s = String(t || 'unknown').replace(/[A-Za-z_$][\w$]*/g, id => TS_MAP[id] || id);
@@ -1080,7 +1086,7 @@ textarea.code.short { min-height: 110px; }
     L.push(head + ' {');
     for (const a of c.attributes) {
       const t = tsType(a.type, UML.isMany(a.mult));
-      const def = a.def ? ' = ' + a.def.replace(/^(DISPONIVEL|[A-Z_]+)$/, m => (UML.classifierByName(p, a.type) ? `${a.type}.${m}` : m)) : UML.isMany(a.mult) ? ' = []' : '';
+      const def = a.def ? ' = ' + enumDefault(p, a.type, a.def) : UML.isMany(a.mult) ? ' = []' : '';
       const opt = UML.isOptional(a.mult) ? '?' : !def && !a.isStatic ? '!' : '';
       L.push(`  ${TSV[a.vis]}${a.isStatic ? 'static ' : ''}${a.readOnly ? 'readonly ' : ''}${a.name}${opt}: ${t}${def};`);
     }
@@ -1105,7 +1111,7 @@ textarea.code.short { min-height: 110px; }
     int: 'int', long: 'int', short: 'int', byte: 'int', Integer: 'int', Long: 'int', BigInteger: 'int', number: 'float',
     double: 'float', float: 'float', Double: 'float', Float: 'float', BigDecimal: 'Decimal',
     String: 'str', string: 'str', char: 'str', Character: 'str', UUID: 'UUID',
-    boolean: 'bool', Boolean: 'bool', LocalDate: 'date', Date: 'date', LocalDateTime: 'datetime', Instant: 'datetime', Object: 'object', void: 'None',
+    boolean: 'bool', Boolean: 'bool', LocalDate: 'date', Date: 'date', LocalDateTime: 'datetime', Instant: 'datetime', LocalTime: 'time', Duration: 'timedelta', Object: 'object', void: 'None',
   };
   const pyType = (t, many) => {
     let s = String(t || 'object').replace(/[A-Za-z_$][\w$]*/g, id => PY_MAP[id] || id);
@@ -1132,10 +1138,12 @@ textarea.code.short { min-height: 110px; }
     if (c.kind === 'datatype') imp.push('from dataclasses import dataclass');
     if (c.kind === 'enumeration') imp.push('from enum import Enum, auto');
     if (/\bDecimal\b/.test(texts)) imp.push('from decimal import Decimal');
-    const dt = ['date', 'datetime'].filter(x => new RegExp('\\b' + x + '\\b').test(texts));
+    const dt = ['date', 'datetime', 'time', 'timedelta'].filter(x => new RegExp('\\b' + x + '\\b').test(texts));
     if (dt.length) imp.push(`from datetime import ${dt.join(', ')}`);
     if (/\bUUID\b/.test(texts)) imp.push('from uuid import UUID');
     [...supers, ...reals].forEach(s => imp.push(`from .${snake(s.name)} import ${s.name}`));
+    const enums = new Set(c.attributes.filter(a => a.def && enumDefault(p, a.type, a.def) !== a.def).map(a => a.type.trim()));
+    [...enums].filter(n => n !== c.name).forEach(n => imp.push(`from .${snake(n)} import ${n}`));
     if (imp.length) L.push(...imp, '');
     L.push('');
     const bases = [...supers, ...reals].map(s => s.name);
@@ -1146,15 +1154,15 @@ textarea.code.short { min-height: 110px; }
     const B = [];
     if (c.doc) B.push(`    """${c.doc.replace(/\n/g, '\n    ')}"""`, '');
     if (c.kind === 'enumeration') c.literals.forEach(l => B.push(`    ${l.name} = auto()`));
-    else if (c.kind === 'datatype') c.attributes.forEach(a => B.push(`    ${snake(a.name)}: ${pyType(a.type, UML.isMany(a.mult))}${a.def ? ' = ' + pyDef(a.def) : ''}`));
+    else if (c.kind === 'datatype') c.attributes.forEach(a => B.push(`    ${snake(a.name)}: ${pyType(a.type, UML.isMany(a.mult))}${a.def ? ' = ' + pyDef(enumDefault(p, a.type, a.def)) : ''}`));
     else {
-      c.attributes.filter(a => a.isStatic).forEach(a => B.push(`    ${pyName(a.name, a.vis)}: ${pyType(a.type)} = ${pyDef(a.def)}`));
+      c.attributes.filter(a => a.isStatic).forEach(a => B.push(`    ${pyName(a.name, a.vis)}: ${pyType(a.type)} = ${pyDef(enumDefault(p, a.type, a.def))}`));
       const inst = c.attributes.filter(a => !a.isStatic);
       if (inst.length || assoc.length || supers.length) {
         if (B.length) B.push('');
         B.push('    def __init__(self) -> None:');
         if (supers.length) B.push('        super().__init__()');
-        inst.forEach(a => B.push(`        self.${pyName(a.name, a.vis)}: ${pyType(a.type, UML.isMany(a.mult))}${UML.isOptional(a.mult) ? ' | None' : ''} = ${UML.isMany(a.mult) && !a.def ? '[]' : pyDef(a.def)}`));
+        inst.forEach(a => B.push(`        self.${pyName(a.name, a.vis)}: ${pyType(a.type, UML.isMany(a.mult))}${UML.isOptional(a.mult) ? ' | None' : ''} = ${UML.isMany(a.mult) && !a.def ? '[]' : pyDef(enumDefault(p, a.type, a.def))}`));
         assoc.forEach(f => B.push(`        self.${pyName(f.name, f.vis)}: ${f.qualifier ? `dict[${pyType(f.qualifier.type)}, ${f.type}]` : f.many ? `list[${f.type}]` : `${f.type} | None`} = ${f.qualifier ? '{}' : f.many ? '[]' : 'None'}`));
       }
     }
@@ -1706,7 +1714,8 @@ textarea.code.short { min-height: 110px; }
     if (ox1 - ox0 >= 16) { const x = (ox0 + ox1) / 2; return cb.y > ca.y ? [{ x, y: a.y + a._h }, { x, y: b.y }] : [{ x, y: a.y }, { x, y: b.y + b._h }]; }
     if (oy1 - oy0 >= 16) { const y = (oy0 + oy1) / 2; return cb.x > ca.x ? [{ x: a.x + a._w, y }, { x: b.x, y }] : [{ x: a.x, y }, { x: b.x + b._w, y }]; }
     const gx = Math.max(b.x - (a.x + a._w), a.x - (b.x + b._w)), gy = Math.max(b.y - (a.y + a._h), a.y - (b.y + b._h));
-    if (gx >= gy) {
+    // Preferir o traçado vertical (árvore de herança); horizontal só quando o vão lateral domina.
+    if (gx > gy * 1.6) {
       const p1 = { x: cb.x > ca.x ? a.x + a._w : a.x, y: ca.y }, p2 = { x: cb.x > ca.x ? b.x : b.x + b._w, y: cb.y }, mx = (p1.x + p2.x) / 2;
       return [p1, { x: mx, y: p1.y }, { x: mx, y: p2.y }, p2];
     }
@@ -1821,13 +1830,16 @@ textarea.code.short { min-height: 110px; }
     if (assoc && raw.length >= 2) {
       for (const k of [0, 1]) {
         const end = r.ends[k], { u, nn } = E[k];
-        const back = end.agg !== 'none' ? 34 : 20;
-        const base = { x: anchors[k].x - u.x * back, y: anchors[k].y - u.y * back };
         const s = sideOf(nn), vertical = Math.abs(u.y) > Math.abs(u.x);
+        // Em linhas mais horizontais, o texto cresce para longe da caixa e não a invade.
+        const back = vertical ? (end.agg !== 'none' ? 34 : 20) : end.agg !== 'none' ? 30 : end.nav === 'nav' ? 17 : 8;
+        const away = vertical ? null : u.x > 0 ? 'end' : 'start';
+        const base = { x: anchors[k].x - u.x * back, y: anchors[k].y - u.y * back };
+        const at = (side, dist) => { const q = placed(base, side, dist, vertical); if (away) q.anchor = away; return q; };
         const role = (end.vis && end.role ? end.vis : '') + (end.role || '');
-        if (role) { const q = placed(base, s, 11, vertical); labels += label('t-edge', 'r' + k, q.x, q.y, q.anchor, role, o, ev); }
-        if (end.constraint) { const q = placed(base, s, vertical ? 11 : 24, vertical); labels += label('t-edge', 'c' + k, q.x, q.y + (vertical ? 13 : 0), q.anchor, `{${end.constraint}}`, o, ev); }
-        if (end.mult) { const q = placed(base, { x: -s.x, y: -s.y }, 11, vertical); labels += label('t-mult', 'm' + k, q.x, q.y, q.anchor, end.mult, o, ev); }
+        if (role) { const q = at(s, 11); labels += label('t-edge', 'r' + k, q.x, q.y, q.anchor, role, o, ev); }
+        if (end.constraint) { const q = at(s, vertical ? 11 : 24); labels += label('t-edge', 'c' + k, q.x, q.y + (vertical ? 13 : 0), q.anchor, `{${end.constraint}}`, o, ev); }
+        if (end.mult) { const q = at({ x: -s.x, y: -s.y }, 11); labels += label('t-mult', 'm' + k, q.x, q.y, q.anchor, end.mult, o, ev); }
       }
     }
     const on = !o.exp && o.sel && o.sel.has(ev.id);

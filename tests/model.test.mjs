@@ -184,3 +184,21 @@ test('guarda a multiplicidade do retorno separada do tipo', () => {
   assert.equal(o.retMult, '0..1');
   assert.equal(U.fmtOp(o), '+ buscar(isbn: String): Livro [0..1]');
 });
+
+test('qualifica literais de enumeração e converte tipos de tempo', () => {
+  const p = U.newProject();
+  const en = Object.assign(U.newElement('enumeration', 'Estagio'), { literals: [U.lit('SEMENTE'), U.lit('MUDA')] });
+  const c = U.newElement('class', 'Arvore');
+  c.attributes = [U.attr('- estagio: Estagio = SEMENTE'), U.attr('- inicio: LocalTime'), U.attr('- duracao: Duration')];
+  p.elements[en.id] = en; p.elements[c.id] = c;
+  const get = (lang, f) => U.generate(p, lang).find(x => x.file.endsWith(f)).code;
+  assert.match(get('java', 'Arvore.java'), /private Estagio estagio = Estagio\.SEMENTE;/);
+  const ts = get('ts', 'Arvore.ts');
+  assert.match(ts, /estagio: Estagio = Estagio\.SEMENTE;/);
+  assert.match(ts, /inicio!: string;/);
+  assert.match(ts, /duracao!: number;/);
+  const py = get('python', 'arvore.py');
+  assert.match(py, /from \.estagio import Estagio/);
+  assert.match(py, /= Estagio\.SEMENTE/);
+  assert.match(py, /from datetime import time, timedelta/);
+});

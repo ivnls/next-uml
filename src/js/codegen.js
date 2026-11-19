@@ -145,6 +145,12 @@
     }
     return out;
   }
+  // Valor padrão que é literal de uma enumeração do modelo vira Tipo.LITERAL no código.
+  const enumDefault = (p, type, def) => {
+    const e = UML.classifierByName(p, String(type || '').trim());
+    const d = String(def || '').trim();
+    return e && e.kind === 'enumeration' && e.literals.some(l => l.name === d) ? `${e.name}.${d}` : def;
+  };
   const genParents = (p, c, kind) => Object.values(p.relations).filter(r => r.kind === kind && r.source === c.id).map(r => p.elements[r.target]).filter(e => e && UML.isClassifier(e.kind));
   const docLines = (doc, pre) => (doc ? doc.split('\n').map(l => pre + l) : []);
   const selected = (p, ids) => classifiers(p).filter(c => c.kind !== 'primitive' && (!ids || ids.has(c.id)));
@@ -196,7 +202,7 @@
     if (isEnum) body.push('    ' + (c.literals.map(l => l.name).join(',\n    ') || '') + ';', '');
     for (const a of c.attributes) {
       const many = UML.isMany(a.mult);
-      let def = a.def ? ' = ' + a.def : many && !iface ? ' = new ArrayList<>()' : '';
+      let def = a.def ? ' = ' + enumDefault(p, a.type, a.def) : many && !iface ? ' = new ArrayList<>()' : '';
       if (isEnum && a.def && !a.isStatic) def = '';
       if (iface) body.push(`    ${jType(a.type, many)} ${a.name}${def || ' = null'};`);
       else body.push(`    ${JV[a.vis]}${a.isStatic ? 'static ' : ''}${a.readOnly ? 'final ' : ''}${jType(a.type, many)} ${a.name}${def};`);
@@ -227,7 +233,7 @@
     Integer: 'number', Long: 'number', Short: 'number', Byte: 'number', Float: 'number', Double: 'number',
     String: 'string', char: 'string', Character: 'string', UUID: 'string', str: 'string',
     boolean: 'boolean', Boolean: 'boolean', bool: 'boolean',
-    Date: 'Date', LocalDate: 'Date', LocalDateTime: 'Date', Instant: 'Date', Object: 'unknown',
+    Date: 'Date', LocalDate: 'Date', LocalDateTime: 'Date', Instant: 'Date', LocalTime: 'string', Duration: 'number', Object: 'unknown',
   };
   const tsType = (t, many) => {
     let s = String(t || 'unknown').replace(/[A-Za-z_$][\w$]*/g, id => TS_MAP[id] || id);
@@ -270,7 +276,7 @@
     L.push(head + ' {');
     for (const a of c.attributes) {
       const t = tsType(a.type, UML.isMany(a.mult));
-      const def = a.def ? ' = ' + a.def.replace(/^(DISPONIVEL|[A-Z_]+)$/, m => (UML.classifierByName(p, a.type) ? `${a.type}.${m}` : m)) : UML.isMany(a.mult) ? ' = []' : '';
+      const def = a.def ? ' = ' + enumDefault(p, a.type, a.def) : UML.isMany(a.mult) ? ' = []' : '';
       const opt = UML.isOptional(a.mult) ? '?' : !def && !a.isStatic ? '!' : '';
       L.push(`  ${TSV[a.vis]}${a.isStatic ? 'static ' : ''}${a.readOnly ? 'readonly ' : ''}${a.name}${opt}: ${t}${def};`);
     }
@@ -295,7 +301,7 @@
     int: 'int', long: 'int', short: 'int', byte: 'int', Integer: 'int', Long: 'int', BigInteger: 'int', number: 'float',
     double: 'float', float: 'float', Double: 'float', Float: 'float', BigDecimal: 'Decimal',
     String: 'str', string: 'str', char: 'str', Character: 'str', UUID: 'UUID',
-    boolean: 'bool', Boolean: 'bool', LocalDate: 'date', Date: 'date', LocalDateTime: 'datetime', Instant: 'datetime', Object: 'object', void: 'None',
+    boolean: 'bool', Boolean: 'bool', LocalDate: 'date', Date: 'date', LocalDateTime: 'datetime', Instant: 'datetime', LocalTime: 'time', Duration: 'timedelta', Object: 'object', void: 'None',
   };
   const pyType = (t, many) => {
     let s = String(t || 'object').replace(/[A-Za-z_$][\w$]*/g, id => PY_MAP[id] || id);
@@ -322,10 +328,12 @@
     if (c.kind === 'datatype') imp.push('from dataclasses import dataclass');
     if (c.kind === 'enumeration') imp.push('from enum import Enum, auto');
     if (/\bDecimal\b/.test(texts)) imp.push('from decimal import Decimal');
-    const dt = ['date', 'datetime'].filter(x => new RegExp('\\b' + x + '\\b').test(texts));
+    const dt = ['date', 'datetime', 'time', 'timedelta'].filter(x => new RegExp('\\b' + x + '\\b').test(texts));
     if (dt.length) imp.push(`from datetime import ${dt.join(', ')}`);
     if (/\bUUID\b/.test(texts)) imp.push('from uuid import UUID');
     [...supers, ...reals].forEach(s => imp.push(`from .${snake(s.name)} import ${s.name}`));
+    const enums = new Set(c.attributes.filter(a => a.def && enumDefault(p, a.type, a.def) !== a.def).map(a => a.type.trim()));
+    [...enums].filter(n => n !== c.name).forEach(n => imp.push(`from .${snake(n)} import ${n}`));
     if (imp.length) L.push(...imp, '');
     L.push('');
     const bases = [...supers, ...reals].map(s => s.name);
@@ -336,15 +344,15 @@
     const B = [];
     if (c.doc) B.push(`    """${c.doc.replace(/\n/g, '\n    ')}"""`, '');
     if (c.kind === 'enumeration') c.literals.forEach(l => B.push(`    ${l.name} = auto()`));
-    else if (c.kind === 'datatype') c.attributes.forEach(a => B.push(`    ${snake(a.name)}: ${pyType(a.type, UML.isMany(a.mult))}${a.def ? ' = ' + pyDef(a.def) : ''}`));
+    else if (c.kind === 'datatype') c.attributes.forEach(a => B.push(`    ${snake(a.name)}: ${pyType(a.type, UML.isMany(a.mult))}${a.def ? ' = ' + pyDef(enumDefault(p, a.type, a.def)) : ''}`));
     else {
-      c.attributes.filter(a => a.isStatic).forEach(a => B.push(`    ${pyName(a.name, a.vis)}: ${pyType(a.type)} = ${pyDef(a.def)}`));
+      c.attributes.filter(a => a.isStatic).forEach(a => B.push(`    ${pyName(a.name, a.vis)}: ${pyType(a.type)} = ${pyDef(enumDefault(p, a.type, a.def))}`));
       const inst = c.attributes.filter(a => !a.isStatic);
       if (inst.length || assoc.length || supers.length) {
         if (B.length) B.push('');
         B.push('    def __init__(self) -> None:');
         if (supers.length) B.push('        super().__init__()');
-        inst.forEach(a => B.push(`        self.${pyName(a.name, a.vis)}: ${pyType(a.type, UML.isMany(a.mult))}${UML.isOptional(a.mult) ? ' | None' : ''} = ${UML.isMany(a.mult) && !a.def ? '[]' : pyDef(a.def)}`));
+        inst.forEach(a => B.push(`        self.${pyName(a.name, a.vis)}: ${pyType(a.type, UML.isMany(a.mult))}${UML.isOptional(a.mult) ? ' | None' : ''} = ${UML.isMany(a.mult) && !a.def ? '[]' : pyDef(enumDefault(p, a.type, a.def))}`));
         assoc.forEach(f => B.push(`        self.${pyName(f.name, f.vis)}: ${f.qualifier ? `dict[${pyType(f.qualifier.type)}, ${f.type}]` : f.many ? `list[${f.type}]` : `${f.type} | None`} = ${f.qualifier ? '{}' : f.many ? '[]' : 'None'}`));
       }
     }
